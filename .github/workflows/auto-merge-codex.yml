@@ -6,11 +6,15 @@ on:
       - opened
       - synchronize
       - reopened
+      - labeled
 
 jobs:
   auto-merge:
     if: |
-      github.actor == 'github-actions[bot]' || github.actor == 'codex-app[bot]'
+      github.actor == 'github-actions[bot]' ||
+      github.actor == 'codex[bot]' ||
+      github.actor == 'codex-app[bot]' ||
+      contains(github.event.pull_request.labels.*.name, 'codex')
     runs-on: ubuntu-latest
 
     permissions:
@@ -18,14 +22,17 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Enable auto-merge
         uses: peter-evans/enable-pull-request-automerge@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           merge-method: squash
 
-      - name: Merge PR
-        uses: devops-infra/action-pull-request@v0.5.0
+      - name: Auto-merge PR
+        uses: peter-evans/auto-merge@v5
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          action: merge
+          token: ${{ secrets.GITHUB_TOKEN }}
+          merge-method: squash
