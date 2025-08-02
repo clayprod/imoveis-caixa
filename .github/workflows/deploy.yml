@@ -1,351 +1,37 @@
-name: Deploy to AWS EC2
+name: Deploy para EC2 após merge na main
 
 on:
   push:
-    branches: [ main, production ]
-  pull_request:
-    branches: [ main ]
-
-env:
-  NODE_VERSION: '18'
-  PYTHON_VERSION: '3.11'
+    branches:
+      - main
 
 jobs:
-  test:
+  deploy:
+    name: Deploy na EC2
     runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-    
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
-    
-    - name: Install frontend dependencies
-      run: |
-        cd frontend
-        npm ci
-    
-    - name: Install backend dependencies
-      run: |
-        cd backend
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    
-    - name: Run frontend tests
-      run: |
-        cd frontend
-        npm run test -- --coverage --watchAll=false
-    
-    - name: Run backend tests
-      run: |
-        cd backend
-        python -m pytest tests/ -v --cov=src
-    
-    - name: Lint frontend code
-      run: |
-        cd frontend
-        npm run lint
-    
-    - name: Build frontend
-      run: |
-        cd frontend
-        npm run build
-    
-    - name: Upload test coverage
-      uses: codecov/codecov-action@v3
-      with:
-        directory: ./frontend/coverage
-        flags: frontend
-        name: frontend-coverage
-    
-  security-scan:
-    runs-on: ubuntu-latest
-    needs: test
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
-    
-    - name: Upload Trivy scan results
-      uses: github/codeql-action/upload-sarif@v2
-      with:
-        sarif_file: 'trivy-results.sarif'
 
-  ai-code-review:
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'pull_request'
-    
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    
-    - name: AI Code Review with OpenAI
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const { execSync } = require('child_process');
-          
-          // Get changed files
-          const changedFiles = execSync('git diff --name-only HEAD~1 HEAD', { encoding: 'utf8' })
-            .split('\n')
-            .filter(file => file.length > 0)
-            .filter(file => file.match(/\.(js|jsx|ts|tsx|py|php)$/));
-          
-          if (changedFiles.length === 0) {
-            console.log('No code files changed');
-            return;
-          }
-          
-          // Get diff for changed files
-          const diff = execSync(`git diff HEAD~1 HEAD -- ${changedFiles.join(' ')}`, { encoding: 'utf8' });
-          
-          // Call OpenAI API for code review
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${{ secrets.OPENAI_API_KEY }}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: 'gpt-4',
-              messages: [{
-                role: 'system',
-                content: 'You are a senior software engineer reviewing code. Focus on security, performance, maintainability, and best practices. Provide constructive feedback.'
-              }, {
-                role: 'user',
-                content: `Please review this code diff:\n\n${diff}`
-              }],
-              max_tokens: 1000
-            })
-          });
-          
-          const data = await response.json();
-          const review = data.choices[0].message.content;
-          
-          // Post review as comment
-          await github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: `## 🤖 AI Code Review\n\n${review}`
-          });
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 🔐 Configurar acesso SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-  deploy-staging:
-    runs-on: ubuntu-latest
-    needs: [test, security-scan]
-    if: github.ref == 'refs/heads/main'
-    environment: staging
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-    
-    - name: Build frontend
-      run: |
-        cd frontend
-        npm ci
-        npm run build
-      env:
-        REACT_APP_API_URL: ${{ secrets.STAGING_API_URL }}
-        REACT_APP_ENVIRONMENT: staging
-    
-    - name: Deploy to staging
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.STAGING_HOST }}
-        username: ${{ secrets.STAGING_USERNAME }}
-        key: ${{ secrets.STAGING_SSH_KEY }}
-        script: |
-          cd /home/ubuntu/imoveis-caixa-staging
-          git pull origin main
-          ./deploy.sh staging
+      - name: 🛰️ Conectar e deployar via SSH
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            echo '🚀 Pullando últimos commits da main...'
+            cd ~/imoveis-caixa-final
+            git pull origin main
 
-  deploy-production:
-    runs-on: ubuntu-latest
-    needs: [test, security-scan, deploy-staging]
-    if: github.ref == 'refs/heads/production'
-    environment: production
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-    
-    - name: Build frontend for production
-      run: |
-        cd frontend
-        npm ci
-        npm run build
-      env:
-        REACT_APP_API_URL: ${{ secrets.PRODUCTION_API_URL }}
-        REACT_APP_ENVIRONMENT: production
-    
-    - name: Create deployment artifact
-      run: |
-        tar -czf deployment.tar.gz \
-          --exclude=node_modules \
-          --exclude=venv \
-          --exclude=.git \
-          --exclude=tests \
-          --exclude=*.log \
-          .
-    
-    - name: Upload artifact to S3
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-    
-    - name: Upload to S3
-      run: |
-        aws s3 cp deployment.tar.gz s3://${{ secrets.DEPLOYMENT_BUCKET }}/releases/$(date +%Y%m%d_%H%M%S)_deployment.tar.gz
-    
-    - name: Deploy to production
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.PRODUCTION_HOST }}
-        username: ${{ secrets.PRODUCTION_USERNAME }}
-        key: ${{ secrets.PRODUCTION_SSH_KEY }}
-        script: |
-          # Create backup
-          cd /home/ubuntu
-          sudo tar -czf backup_$(date +%Y%m%d_%H%M%S).tar.gz imoveis-caixa-final/
-          
-          # Download and extract new version
-          cd imoveis-caixa-final
-          git pull origin production
-          
-          # Run deployment
-          ./deploy.sh production
-          
-          # Health check
-          sleep 30
-          curl -f https://${{ secrets.PRODUCTION_DOMAIN }}/health || exit 1
-    
-    - name: Notify deployment success
-      uses: 8398a7/action-slack@v3
-      with:
-        status: success
-        text: '🚀 Production deployment successful!'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-      if: success()
-    
-    - name: Notify deployment failure
-      uses: 8398a7/action-slack@v3
-      with:
-        status: failure
-        text: '❌ Production deployment failed!'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-      if: failure()
+            echo '📦 Atualizando backend'
+            cd backend
+            source venv/bin/activate
+            pip install -r requirements.txt
 
-  auto-merge-dependabot:
-    runs-on: ubuntu-latest
-    needs: [test, security-scan]
-    if: github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'
-    
-    steps:
-    - name: Auto-merge Dependabot PRs
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const pr = context.payload.pull_request;
-          
-          // Only auto-merge patch and minor updates
-          if (pr.title.includes('patch') || pr.title.includes('minor')) {
-            await github.rest.pulls.createReview({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-              event: 'APPROVE',
-              body: '✅ Auto-approved by CI - patch/minor dependency update'
-            });
-            
-            await github.rest.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number,
-              merge_method: 'squash'
-            });
-          }
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            echo '🌐 Atualizando frontend'
+            cd ../frontend
+            npm install --legacy-peer-deps
+            npm run build
 
-  performance-monitoring:
-    runs-on: ubuntu-latest
-    needs: deploy-production
-    if: github.ref == 'refs/heads/production'
-    
-    steps:
-    - name: Run Lighthouse CI
-      uses: treosh/lighthouse-ci-action@v10
-      with:
-        urls: |
-          https://${{ secrets.PRODUCTION_DOMAIN }}
-          https://${{ secrets.PRODUCTION_DOMAIN }}/login
-          https://${{ secrets.PRODUCTION_DOMAIN }}/dashboard
-        uploadArtifacts: true
-        temporaryPublicStorage: true
-    
-    - name: Performance budget check
-      run: |
-        # Check if performance scores meet minimum requirements
-        echo "Performance monitoring completed"
-        # Add custom performance checks here
-
-  cleanup:
-    runs-on: ubuntu-latest
-    needs: [deploy-production]
-    if: always()
-    
-    steps:
-    - name: Cleanup old deployments
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.PRODUCTION_HOST }}
-        username: ${{ secrets.PRODUCTION_USERNAME }}
-        key: ${{ secrets.PRODUCTION_SSH_KEY }}
-        script: |
-          # Keep only last 5 backups
-          cd /home/ubuntu
-          ls -t backup_*.tar.gz | tail -n +6 | xargs -r rm
-          
-          # Clean Docker images (if using Docker)
-          # docker system prune -f
-          
-          # Clean npm cache
-          npm cache clean --force
-          
-          echo "Cleanup completed"
-
+            echo '✅ Deploy finalizado com sucesso'
+          EOF
