@@ -6,7 +6,6 @@ import './App.css'
 // Layout Components
 import Navbar from './components/layout/Navbar'
 import Sidebar from './components/layout/Sidebar'
-import Footer from './components/layout/Footer'
 
 // Page Components
 import LandingPage from './pages/LandingPage'
@@ -54,9 +53,6 @@ function AppContent() {
       </div>
     )
   }
-
-  const isPublicRoute = ['/login', '/register', '/pricing'].includes(window.location.pathname)
-  const showNavigation = isAuthenticated && !isPublicRoute
 
   return (
     <div className="min-h-screen bg-gray-50">
