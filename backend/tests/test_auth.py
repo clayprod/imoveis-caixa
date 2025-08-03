@@ -1,20 +1,19 @@
 import os
 import sys
-
 import pytest
-from werkzeug.security import generate_password_hash
 
-# Ensure the backend package is on the path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Ensure project root is on the PYTHONPATH
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Configure in-memory database before importing app
+# Set environment variables before importing app
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
+os.environ['SECRET_KEY'] = 'test-secret'
 
-from src.main import app  # noqa: E402
-from src.models.user import db, User  # noqa: E402
+from src.main import app, db  # noqa: E402
 
 
-@pytest.fixture
+@pytest.fixture()
+
 def client():
     app.config['TESTING'] = True
     with app.app_context():
@@ -24,19 +23,24 @@ def client():
         db.drop_all()
 
 
-def test_login_returns_token_and_user(client):
-    password = 'secret'
-    user = User(username='john', email='john@example.com',
-                password=generate_password_hash(password))
-    db.session.add(user)
-    db.session.commit()
+def test_register_and_login_returns_token_and_user(client):
+    payload = {
+        'username': 'testuser',
+        'email': 'test@example.com',
+        'password': 'secret'
+    }
 
-    response = client.post('/api/login',
-                           json={'email': 'john@example.com', 'password': password})
+    register_resp = client.post('/api/register', json=payload)
+    assert register_resp.status_code == 201
+    reg_data = register_resp.get_json()
+    assert 'token' in reg_data
+    assert 'user' in reg_data
+    assert reg_data['user']['username'] == payload['username']
 
-    assert response.status_code == 200
-    data = response.get_json()
-    assert 'token' in data
-    assert 'user' in data
-    assert data['user']['email'] == 'john@example.com'
-    assert data['user']['username'] == 'john'
+    login_resp = client.post('/api/login', json=payload)
+    assert login_resp.status_code == 200
+    login_data = login_resp.get_json()
+    assert 'token' in login_data
+    assert 'user' in login_data
+    assert login_data['user']['email'] == payload['email']
+

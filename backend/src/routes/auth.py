@@ -1,10 +1,14 @@
 from datetime import datetime, timedelta
 
+import logging
 
 import jwt
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from src.models.user import db, User
+
+
+logger = logging.getLogger(__name__)
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -47,65 +51,57 @@ def auth_health():
 
 @auth_bp.route("/register", methods=["POST"])
 def register():
-    data = request.get_json() or {}
+    try:
+        data = request.get_json() or {}
 
-    email = data.get("email")
-    password = data.get("password")
-    username = data.get("username")
+        if not data.get('username') or not data.get('email') or not data.get('password'):
+            return jsonify({'error': 'Username, email and password are required'}), 400
 
-    missing_fields = [
-        field for field in ["email", "password", "username"] if not data.get(field)
-    ]
-    if missing_fields:
-        return (
-            jsonify({"error": "Missing fields", "missing_fields": missing_fields}),
-            400,
+        if User.query.filter_by(email=data['email']).first() or User.query.filter_by(username=data['username']).first():
+            return jsonify({'error': 'User already exists'}), 409
+
+        hashed_password = generate_password_hash(data['password'])
+        new_user = User(username=data['username'], email=data['email'], password=hashed_password)
+
+        db.session.add(new_user)
+        db.session.commit()
+
+
+        token = jwt.encode(
+            {'user_id': new_user.id, 'exp': datetime.utcnow() + timedelta(hours=1)},
+            current_app.config['SECRET_KEY'],
+            algorithm='HS256'
         )
 
-    if User.query.filter_by(email=email).first():
-        return jsonify({"error": "User already exists"}), 409
 
-    hashed_password = generate_password_hash(password)
-    new_user = User(email=email, username=username, password=hashed_password)
-
-    db.session.add(new_user)
-    db.session.commit()
-
-    token = _generate_token(new_user.id)
-    return jsonify({"token": token, "user": new_user.to_dict()}), 201
+        return jsonify({'token': token, 'user': new_user.to_dict()}), 201
+    except Exception as e:
+        logger.error(f"Error registering user: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.get_json() or {}
 
-    email = data.get("email")
-    password = data.get("password")
+    try:
+        data = request.get_json() or {}
 
-    if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
+        if not data.get('username') or not data.get('email') or not data.get('password'):
+            return jsonify({'error': 'Username, email and password are required'}), 400
 
-    user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=data['email'], username=data['username']).first()
 
-    if not user or not check_password_hash(user.password, password):
-        return jsonify({"error": "Invalid credentials"}), 401
+        if not user or not check_password_hash(user.password, data['password']):
+            return jsonify({'error': 'Invalid credentials'}), 401
 
-    token = _generate_token(user.id)
-    return jsonify({"token": token, "user": user.to_dict()}), 200
+        token = jwt.encode(
+            {'user_id': user.id, 'exp': datetime.utcnow() + timedelta(hours=1)},
+            current_app.config['SECRET_KEY'],
+            algorithm='HS256'
+        )
 
-
-
-    token = jwt.encode(
-        {
-            'user_id': user.id,
-            'exp': datetime.utcnow() + timedelta(hours=1)
-        },
-        current_app.config['SECRET_KEY'],
-        algorithm='HS256'
-    )
-
-    if isinstance(token, bytes):
-        token = token.decode('utf-8')
-
-    return jsonify({'token': token, 'user': user.to_dict()}), 200
+        return jsonify({'token': token, 'user': user.to_dict()}), 200
+    except Exception as e:
+        logger.error(f"Error during login: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
