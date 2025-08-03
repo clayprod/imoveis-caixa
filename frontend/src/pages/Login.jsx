@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useAuth } from '@/contexts/AuthContext'
+
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -8,8 +10,12 @@ import { Eye, EyeOff } from 'lucide-react'
 
 const Login = () => {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+
+  const location = useLocation()
+  const { login } = useAuth()
+  const from = location.state?.from || '/dashboard'
+  const [formData, setFormData] = useState({ email: '', password: '' })
+
   const [errors, setErrors] = useState({})
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -54,17 +60,10 @@ const Login = () => {
         body: JSON.stringify({ email, password })
       })
 
-      const data = await response.json()
-      if (response.ok) {
-        localStorage.setItem("token", data.token)
-        navigate("/dashboard")
-      } else {
-        alert(data.message || "Erro ao fazer login")
-      }
-    } catch (error) {
-      console.error("Login error:", error)
-    } finally {
-      setIsLoading(false)
+    if (success) {
+      navigate(from)
+    } else {
+      setApiError(error || 'Erro ao fazer login')
     }
   }
 
