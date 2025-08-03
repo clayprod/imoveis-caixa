@@ -1,5 +1,7 @@
 import os
 import sys
+from datetime import datetime
+
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -11,8 +13,14 @@ from src.routes.user import user_bp
 from src.routes.analysis import analysis_bp
 from src.routes.financing import financing_bp
 
+
+secret_key = os.environ.get("SECRET_KEY")
+if not secret_key:
+    # Generate a secure fallback key if none is provided
+    secret_key = os.urandom(24).hex()
+
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
+app.config['SECRET_KEY'] = secret_key
 
 # Enable CORS for all routes
 CORS(app)
@@ -34,7 +42,7 @@ with app.app_context():
 def health_check():
     return jsonify({
         'status': 'healthy',
-        'timestamp': '2024-01-15T10:00:00Z',
+        'timestamp': datetime.utcnow().isoformat(),
         'services': {
             'bedrock': 'available',
             'database': 'connected',
