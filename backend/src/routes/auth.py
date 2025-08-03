@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
-from functools import wraps
+
 
 import jwt
-from flask import Blueprint, current_app, jsonify, request
-from werkzeug.security import check_password_hash, generate_password_hash
+from flask import Blueprint, request, jsonify, current_app
+from werkzeug.security import generate_password_hash, check_password_hash
+from src.models.user import db, User
 
-from src.models.user import User, db
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -94,23 +94,18 @@ def login():
     return jsonify({"token": token, "user": user.to_dict()}), 200
 
 
-@auth_bp.route("/profile", methods=["GET", "PUT"])
-@_token_required
-def profile(current_user):
-    if request.method == "GET":
-        return jsonify(current_user.to_dict()), 200
 
-    data = request.get_json() or {}
-    username = data.get("username")
-    email = data.get("email")
+    token = jwt.encode(
+        {
+            'user_id': user.id,
+            'exp': datetime.utcnow() + timedelta(hours=1)
+        },
+        current_app.config['SECRET_KEY'],
+        algorithm='HS256'
+    )
 
-    if not username and not email:
-        return jsonify({"error": "No fields to update"}), 400
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
 
-    if username:
-        current_user.username = username
-    if email:
-        current_user.email = email
+    return jsonify({'token': token, 'user': user.to_dict()}), 200
 
-    db.session.commit()
-    return jsonify(current_user.to_dict()), 200
