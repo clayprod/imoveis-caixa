@@ -47,7 +47,10 @@ const Login = () => {
     if (!validate()) return
 
     setIsLoading(true)
-    const { success, error } = await login(formData.email, formData.password)
+    const { success, error } = await login({
+      email: formData.email,
+      password: formData.password
+    })
     setIsLoading(false)
 
     if (success) {
