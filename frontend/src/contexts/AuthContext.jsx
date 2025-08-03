@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer, useEffect } from 'react'
+import API_BASE_URL from '../config/api'
 
 const AuthContext = createContext()
 
@@ -95,7 +96,7 @@ export function AuthProvider({ children }) {
       }
 
       // Validate token with backend
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -126,7 +127,7 @@ export function AuthProvider({ children }) {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START })
     
     try {
-      const response = await fetch('/api/auth/login', {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -166,7 +167,7 @@ export function AuthProvider({ children }) {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START })
     
     try {
-      const response = await fetch('/api/auth/register', {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
