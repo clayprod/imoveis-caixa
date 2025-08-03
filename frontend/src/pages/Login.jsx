@@ -10,28 +10,26 @@ import { Eye, EyeOff } from 'lucide-react'
 
 const Login = () => {
   const navigate = useNavigate()
-
   const location = useLocation()
   const { login } = useAuth()
   const from = location.state?.from || '/dashboard'
-  const [formData, setFormData] = useState({ email: '', password: '' })
 
+  const [formData, setFormData] = useState({ email: '', password: '' })
   const [errors, setErrors] = useState({})
+  const [apiError, setApiError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    if (name === 'email') {
-      setEmail(value)
-    } else if (name === 'password') {
-      setPassword(value)
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }))
     setErrors((prev) => ({ ...prev, [name]: '' }))
   }
 
   const validate = () => {
+    const { email, password } = formData
     const newErrors = {}
+
     if (!email) {
       newErrors.email = 'Email é obrigatório'
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -50,20 +48,30 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault()
+    setApiError('')
     if (!validate()) return
 
     setIsLoading(true)
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       })
 
-    if (success) {
-      navigate(from)
-    } else {
-      setApiError(error || 'Erro ao fazer login')
+      const data = await response.json()
+
+      if (response.ok && data.token) {
+        await login(data.token)
+        navigate(from)
+      } else {
+        setApiError(data?.error || 'Erro ao fazer login')
+      }
+    } catch (error) {
+      console.error(error)
+      setApiError('Erro de conexão com o servidor')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -82,7 +90,7 @@ const Login = () => {
                 id="email"
                 name="email"
                 type="email"
-                value={email}
+                value={formData.email}
                 onChange={handleChange}
                 aria-invalid={!!errors.email}
               />
@@ -95,7 +103,7 @@ const Login = () => {
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
-                  value={password}
+                  value={formData.password}
                   onChange={handleChange}
                   aria-invalid={!!errors.password}
                 />
@@ -112,6 +120,9 @@ const Login = () => {
               </div>
               {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
             </div>
+
+            {apiError && <p className="text-sm text-destructive">{apiError}</p>}
+
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Entrando...' : 'Entrar'}
             </Button>
@@ -123,4 +134,3 @@ const Login = () => {
 }
 
 export default Login
-

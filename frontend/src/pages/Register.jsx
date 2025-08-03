@@ -63,7 +63,7 @@ const Register = () => {
 
     setIsLoading(true)
     const { success, error } = await registerUser({
-      name: formData.name,
+      username: formData.name, // ← AQUI está a correção!
       email: formData.email,
       password: formData.password
     })

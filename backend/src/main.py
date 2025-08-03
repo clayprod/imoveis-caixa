@@ -31,7 +31,14 @@ secret_key = os.environ.get("SECRET_KEY") or os.urandom(24).hex()
 # 🚀 Inicialização do app Flask
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = secret_key
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+
+# 🔁 Trocar SQLite por PostgreSQL (lendo do .env)
+# Exemplo: postgresql://imoveisuser:senhaSegura123@localhost:5432/imoveisdb
+database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    raise ValueError("DATABASE_URL não definido no .env")
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # ✅ Corrigir problema de "Bad Request" com host externo
