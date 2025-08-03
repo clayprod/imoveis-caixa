@@ -1,40 +1,40 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Label } from '@/components/ui/label'
 import { Eye, EyeOff } from 'lucide-react'
 
 const Login = () => {
   const navigate = useNavigate()
-  const { login } = useAuth()
-  const [formData, setFormData] = useState({ email: '', password: '' })
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [errors, setErrors] = useState({})
-  const [apiError, setApiError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    if (name === 'email') {
+      setEmail(value)
+    } else if (name === 'password') {
+      setPassword(value)
+    }
     setErrors((prev) => ({ ...prev, [name]: '' }))
-    setApiError('')
   }
 
   const validate = () => {
     const newErrors = {}
-    if (!formData.email) {
+    if (!email) {
       newErrors.email = 'Email é obrigatório'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = 'Email inválido'
     }
 
-    if (!formData.password) {
+    if (!password) {
       newErrors.password = 'Senha é obrigatória'
-    } else if (formData.password.length < 6) {
+    } else if (password.length < 6) {
       newErrors.password = 'A senha deve ter no mínimo 6 caracteres'
     }
 
@@ -42,21 +42,29 @@ const Login = () => {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     if (!validate()) return
 
     setIsLoading(true)
-    const { success, error } = await login({
-      email: formData.email,
-      password: formData.password
-    })
-    setIsLoading(false)
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      })
 
-    if (success) {
-      navigate('/dashboard')
-    } else {
-      setApiError(error || 'Erro ao fazer login')
+      const data = await response.json()
+      if (response.ok) {
+        localStorage.setItem("token", data.token)
+        navigate("/dashboard")
+      } else {
+        alert(data.message || "Erro ao fazer login")
+      }
+    } catch (error) {
+      console.error("Login error:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -68,19 +76,14 @@ const Login = () => {
           <CardDescription>Acesse sua conta</CardDescription>
         </CardHeader>
         <CardContent>
-          {apiError && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{apiError}</AlertDescription>
-            </Alert>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                value={formData.email}
+                value={email}
                 onChange={handleChange}
                 aria-invalid={!!errors.email}
               />
@@ -93,7 +96,7 @@ const Login = () => {
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
+                  value={password}
                   onChange={handleChange}
                   aria-invalid={!!errors.password}
                 />
