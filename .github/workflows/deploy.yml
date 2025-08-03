@@ -19,23 +19,28 @@ jobs:
       - name: 🛰️ Conectar e deployar via SSH
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            echo '🚀 Pullando últimos commits da main...'
+            echo '🚀 Entrando no diretório do projeto...'
             cd ~/imoveis-caixa-final
+
+            echo '🧹 Limpando arquivos locais não rastreados...'
+            git reset --hard
+            git clean -fd
+
+            echo '📥 Pullando últimos commits da main...'
             git pull origin main
 
-            echo '📦 Atualizando backend...'
+            echo '📦 Atualizando backend'
             cd backend
             source venv/bin/activate
             pip install -r requirements.txt
 
             echo '🔄 Reiniciando serviço do backend (systemd)...'
-            sudo systemctl daemon-reload
             sudo systemctl restart imoveis-api
 
-            echo '🌐 Atualizando frontend...'
+            echo '🌐 Atualizando frontend'
             cd ../frontend
             npm install --legacy-peer-deps
             npm run build
 
-            echo '✅ Deploy finalizado com sucesso!'
+            echo '✅ Deploy finalizado com sucesso'
           EOF
