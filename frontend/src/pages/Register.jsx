@@ -18,7 +18,7 @@ const Register = () => {
   const navigate = useNavigate()
   const { register: registerUser } = useAuth()
   const [formData, setFormData] = useState({
-    name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -37,8 +37,8 @@ const Register = () => {
 
   const validate = () => {
     const newErrors = {}
-    if (!formData.name) {
-      newErrors.name = 'Nome é obrigatório'
+    if (!formData.username) {
+      newErrors.username = 'Nome de usuário é obrigatório'
     }
     if (!formData.email) {
       newErrors.email = 'Email é obrigatório'
@@ -63,7 +63,7 @@ const Register = () => {
 
     setIsLoading(true)
     const { success, error } = await registerUser({
-      username: formData.name, // ← AQUI está a correção!
+      username: formData.username,
       email: formData.email,
       password: formData.password
     })
@@ -101,16 +101,16 @@ const Register = () => {
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
+              <Label htmlFor="username">Nome de usuário</Label>
               <Input
-                id="name"
-                name="name"
-                value={formData.name}
+                id="username"
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
-                aria-invalid={!!errors.name}
+                aria-invalid={!!errors.username}
               />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name}</p>
+              {errors.username && (
+                <p className="text-sm text-destructive">{errors.username}</p>
               )}
             </div>
             <div className="space-y-2">
