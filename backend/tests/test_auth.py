@@ -13,6 +13,7 @@ from src.main import app, db  # noqa: E402
 
 
 @pytest.fixture()
+
 def client():
     app.config['TESTING'] = True
     with app.app_context():
@@ -42,3 +43,4 @@ def test_register_and_login_returns_token_and_user(client):
     assert 'token' in login_data
     assert 'user' in login_data
     assert login_data['user']['email'] == payload['email']
+
