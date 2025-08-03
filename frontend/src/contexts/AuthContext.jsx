@@ -39,13 +39,19 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const login = async (credentials) => {
+  /**
+   * Realiza autenticação com as credenciais do usuário.
+   *
+   * @param {{ email: string, password: string }} params - Email e senha do usuário
+   * @returns {Promise<{ success: boolean, error?: string }>}
+   */
+  const login = async ({ email, password }) => {
     setLoading(true)
     try {
       const res = await fetch(`${API_BASE_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
+        body: JSON.stringify({ email, password })
       })
       const data = await res.json()
       if (res.ok) {
