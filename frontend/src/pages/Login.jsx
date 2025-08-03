@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,9 @@ import { Eye, EyeOff } from 'lucide-react'
 
 const Login = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuth()
+  const from = location.state?.from || '/dashboard'
   const [formData, setFormData] = useState({ email: '', password: '' })
   const [errors, setErrors] = useState({})
   const [apiError, setApiError] = useState('')
@@ -54,7 +56,7 @@ const Login = () => {
     setIsLoading(false)
 
     if (success) {
-      navigate('/dashboard')
+      navigate(from)
     } else {
       setApiError(error || 'Erro ao fazer login')
     }
