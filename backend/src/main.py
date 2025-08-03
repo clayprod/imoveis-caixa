@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
 from src.models.user import db
+from src.routes.auth import auth_bp
 from src.routes.user import user_bp
 from src.routes.analysis import analysis_bp
 from src.routes.financing import financing_bp
@@ -17,6 +18,7 @@ app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
 CORS(app)
 
 # Register blueprints
+app.register_blueprint(auth_bp, url_prefix='/api')
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
 app.register_blueprint(financing_bp, url_prefix='/api/financing')
