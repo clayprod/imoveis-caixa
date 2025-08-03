@@ -1,32 +1,37 @@
-name: Auto Merge Codex PR
+name: Auto Merge Codex Branches
 
 on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - labeled
+  push:
+    branches:
+      - 'codex/**'  # ativa sempre que o Codex fizer push em uma branch codex/...
 
 jobs:
   auto-merge:
-    if: |
-      github.actor == 'github-actions[bot]' ||
-      github.actor == 'codex[bot]' ||
-      github.actor == 'codex-app[bot]' ||
-      contains(github.event.pull_request.labels.*.name, 'codex')
     runs-on: ubuntu-latest
 
     permissions:
+      contents: write     # necessário para dar push na main
       pull-requests: write
-      contents: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Enable auto-merge
-        uses: peter-evans/enable-pull-request-automerge@v3
+      - name: Checkout repo
+        uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          merge-method: squash
+          fetch-depth: 0
+
+      - name: Configura Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Descobre nome da branch atual
+        id: vars
+        run: echo "BRANCH_NAME=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+      - name: Puxa e faz merge com main
+        run: |
+          git fetch origin main
+          git fetch origin ${{ env.BRANCH_NAME }}
+          git checkout main
+          git merge origin/${{ env.BRANCH_NAME }} --no-ff --commit --no-edit -m "Auto merge de ${{ env.BRANCH_NAME }}"
+          git push origin main
