@@ -1,6 +1,7 @@
 import os
 import sys
-from datetime import datetime
+import logging
+from datetime import datetime  # necessário para o /health
 
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -14,10 +15,12 @@ from src.routes.user import user_bp
 from src.routes.analysis import analysis_bp
 from src.routes.financing import financing_bp
 
+# Configurar logging global
+logging.basicConfig(level=logging.INFO)
 
+# Definir SECRET_KEY de forma segura
 secret_key = os.environ.get("SECRET_KEY")
 if not secret_key:
-    # Generate a secure fallback key if none is provided
     secret_key = os.urandom(24).hex()
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
@@ -32,7 +35,7 @@ app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
 app.register_blueprint(financing_bp, url_prefix='/api/financing')
 
-# uncomment if you need to use database
+# Configuração do banco
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
@@ -55,7 +58,7 @@ def health_check():
 def serve(path):
     static_folder_path = app.static_folder
     if static_folder_path is None:
-            return "Static folder not configured", 404
+        return "Static folder not configured", 404
 
     if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
         return send_from_directory(static_folder_path, path)
@@ -66,6 +69,6 @@ def serve(path):
         else:
             return "index.html not found", 404
 
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+

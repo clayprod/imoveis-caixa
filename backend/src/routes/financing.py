@@ -9,8 +9,7 @@ from src.services.financing_calculator import (
 )
 import logging
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
+# Module logger
 logger = logging.getLogger(__name__)
 
 financing_bp = Blueprint('financing', __name__)
