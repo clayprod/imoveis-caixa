@@ -1,2 +1,3 @@
-const API_BASE_URL = "http://3.145.29.139:5000/api"; // ou apenas http://3.145.29.139:5000 se não usar prefixo /api
+// src/config/api.js
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 export default API_BASE_URL;
