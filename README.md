@@ -107,6 +107,10 @@ composer install
 # Configurar ambiente
 cp .env.example .env
 # Editar .env com suas configurações
+
+# Inicializar banco de dados
+export FLASK_APP=src.main
+flask db upgrade
 ```
 
 3. **Configure o Frontend**
