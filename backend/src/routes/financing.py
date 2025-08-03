@@ -3,7 +3,10 @@ Rotas da API para Simulador de Financiamento Imobiliário
 """
 
 from flask import Blueprint, request, jsonify
-from services.financing_calculator import calculate_property_financing, FinancingCalculatorService
+from src.services.financing_calculator import (
+    calculate_property_financing,
+    FinancingCalculatorService,
+)
 import logging
 
 # Configurar logging
@@ -106,7 +109,7 @@ def sensitivity_analysis():
         calculator = FinancingCalculatorService()
         
         # Converter dados para inputs
-        from services.financing_calculator import FinancingInputs
+        from src.services.financing_calculator import FinancingInputs
         
         inputs = FinancingInputs(
             property_value=float(data.get('property_value', 0)),
