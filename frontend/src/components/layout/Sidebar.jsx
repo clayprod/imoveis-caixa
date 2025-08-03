@@ -84,7 +84,34 @@ const adminItems = [
 
 export default function Sidebar({ open, setOpen, isAdmin = false }) {
   const location = useLocation()
-  const { hasFeature, user } = useAuth()
+  const { user } = useAuth()
+
+  const hasFeature = (feature) => {
+    const planFeatures = {
+      basic: ['property_search', 'basic_filters', 'favorites'],
+      pro: [
+        'property_search',
+        'basic_filters',
+        'favorites',
+        'advanced_filters',
+        'market_analysis',
+        'alerts'
+      ],
+      premium: [
+        'property_search',
+        'basic_filters',
+        'favorites',
+        'advanced_filters',
+        'market_analysis',
+        'alerts',
+        'ai_analysis',
+        'auction_strategies',
+        'priority_support'
+      ]
+    }
+    const plan = user?.subscription?.plan?.name?.toLowerCase() || 'basic'
+    return planFeatures[plan]?.includes(feature) || false
+  }
 
   const isActive = (href) => {
     return location.pathname === href || location.pathname.startsWith(href + '/')
