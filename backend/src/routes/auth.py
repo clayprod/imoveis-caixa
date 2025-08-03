@@ -1,4 +1,7 @@
-from flask import Blueprint, request, jsonify
+from datetime import datetime, timedelta
+
+import jwt
+from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from src.models.user import db, User
 
@@ -42,4 +45,16 @@ def login():
     if not user or not check_password_hash(user.password, data['password']):
         return jsonify({'error': 'Invalid credentials'}), 401
 
-    return jsonify({'message': 'Login successful'}), 200
+    token = jwt.encode(
+        {
+            'user_id': user.id,
+            'exp': datetime.utcnow() + timedelta(hours=1)
+        },
+        current_app.config['SECRET_KEY'],
+        algorithm='HS256'
+    )
+
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
+
+    return jsonify({'token': token, 'user': user.to_dict()}), 200
