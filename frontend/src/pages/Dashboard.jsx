@@ -110,7 +110,39 @@ const alerts = [
 ]
 
 export default function Dashboard() {
-  const { user, hasFeature, getSearchLimit } = useAuth()
+  const { user } = useAuth()
+  const hasFeature = (feature) => {
+    const planFeatures = {
+      basic: ['property_search', 'basic_filters', 'favorites'],
+      pro: [
+        'property_search',
+        'basic_filters',
+        'favorites',
+        'advanced_filters',
+        'market_analysis',
+        'alerts'
+      ],
+      premium: [
+        'property_search',
+        'basic_filters',
+        'favorites',
+        'advanced_filters',
+        'market_analysis',
+        'alerts',
+        'ai_analysis',
+        'auction_strategies',
+        'priority_support'
+      ]
+    }
+    const plan = user?.subscription?.plan?.name?.toLowerCase() || 'basic'
+    return planFeatures[plan]?.includes(feature) || false
+  }
+
+  const getSearchLimit = () => {
+    const limits = { basic: 50, pro: 500, premium: -1 }
+    const plan = user?.subscription?.plan?.name?.toLowerCase() || 'basic'
+    return limits[plan] ?? 10
+  }
   const [stats, setStats] = useState({
     totalSearches: 0,
     savedProperties: 0,
