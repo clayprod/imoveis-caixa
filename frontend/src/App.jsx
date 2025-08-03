@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import './App.css'
@@ -32,6 +32,7 @@ function AppContent() {
   const { user, isAuthenticated } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const location = useLocation()
 
   useEffect(() => {
     // Simular carregamento inicial
@@ -53,6 +54,9 @@ function AppContent() {
       </div>
     )
   }
+
+  const isPublicRoute = ['/login', '/register', '/pricing'].includes(location.pathname)
+  const showNavigation = isAuthenticated && !isPublicRoute
 
   return (
     <div className="min-h-screen bg-gray-50">
