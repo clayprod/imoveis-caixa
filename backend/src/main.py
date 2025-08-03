@@ -1,46 +1,54 @@
 import os
 import sys
 import logging
-from datetime import datetime  # necessário para o /health
+from datetime import datetime
+from dotenv import load_dotenv
 
-# DON'T CHANGE THIS !!!
+# Garantir que a raiz do projeto esteja no path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
+# 🟢 Carregar variáveis do .env (ex: API keys, configs)
+dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(dotenv_path)
 
 from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
 from flask_migrate import Migrate
+from werkzeug.middleware.proxy_fix import ProxyFix  # ✅ Importante
+
 from src.models.user import db
 from src.routes.auth import auth_bp
 from src.routes.user import user_bp
 from src.routes.analysis import analysis_bp
 from src.routes.financing import financing_bp
 
-# Configurar logging global
+# 📝 Logging básico
 logging.basicConfig(level=logging.INFO)
 
-# Definir SECRET_KEY de forma segura
-secret_key = os.environ.get("SECRET_KEY")
-if not secret_key:
-    secret_key = os.urandom(24).hex()
+# 🔐 Configurar a chave secreta do Flask
+secret_key = os.environ.get("SECRET_KEY") or os.urandom(24).hex()
 
+# 🚀 Inicialização do app Flask
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = secret_key
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Enable CORS for all routes
+# ✅ Corrigir problema de "Bad Request" com host externo
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
+
+# 🛠 Extensões
 CORS(app)
+db.init_app(app)
+migrate = Migrate(app, db)
 
-# Register blueprints
+# 🔗 Blueprints
 app.register_blueprint(auth_bp, url_prefix='/api')
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
 app.register_blueprint(financing_bp, url_prefix='/api/financing')
 
-# Configuração do banco
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db.init_app(app)
-migrate = Migrate(app, db)
-
+# ✅ Health Check
 @app.route('/health')
 def health_check():
     return jsonify({
@@ -53,22 +61,25 @@ def health_check():
         }
     })
 
+# 🌐 Rota para servir arquivos estáticos (ex: React build)
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
     static_folder_path = app.static_folder
-    if static_folder_path is None:
+    if not static_folder_path:
         return "Static folder not configured", 404
 
-    if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
+    file_path = os.path.join(static_folder_path, path)
+    if path != "" and os.path.exists(file_path):
         return send_from_directory(static_folder_path, path)
-    else:
-        index_path = os.path.join(static_folder_path, 'index.html')
-        if os.path.exists(index_path):
-            return send_from_directory(static_folder_path, 'index.html')
-        else:
-            return "index.html not found", 404
+    
+    index_path = os.path.join(static_folder_path, 'index.html')
+    if os.path.exists(index_path):
+        return send_from_directory(static_folder_path, 'index.html')
+    
+    return "index.html not found", 404
 
+# 🔁 Rodar o servidor
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
-
+    print("Iniciando Flask em modo desenvolvimento...")
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
