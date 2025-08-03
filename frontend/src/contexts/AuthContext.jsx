@@ -27,13 +27,11 @@ export function AuthProvider({ children }) {
         const data = await res.json()
         setUser(data)
       } else {
-        localStorage.removeItem('auth_token')
-        setToken(null)
+        logout()
       }
     } catch (err) {
       console.error('Token validation failed:', err)
-      localStorage.removeItem('auth_token')
-      setToken(null)
+      logout()
     } finally {
       setLoading(false)
     }
