@@ -6,8 +6,7 @@ from flask import Blueprint, request, jsonify
 from services.financing_calculator import calculate_property_financing, FinancingCalculatorService
 import logging
 
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
+# Module logger
 logger = logging.getLogger(__name__)
 
 financing_bp = Blueprint('financing', __name__)
