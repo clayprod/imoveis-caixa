@@ -32,7 +32,7 @@ jobs:
             echo '📥 Pullando últimos commits da main...'
             git pull origin main
 
-            echo '📦 Atualizando backend'
+            echo '📦 Atualizando backend...'
             cd backend
             source venv/bin/activate
             pip install -r requirements.txt
@@ -40,10 +40,14 @@ jobs:
             echo '🔄 Reiniciando serviço do backend (systemd)...'
             sudo systemctl restart imoveis-api
 
-            echo '🌐 Atualizando frontend'
+            echo '🌐 Atualizando frontend...'
             cd ../frontend
             npm install --legacy-peer-deps
             npm run build
+
+            echo '📁 Copiando arquivos da build para o Nginx...'
+            sudo rm -rf /var/www/html/*
+            sudo cp -r dist/* /var/www/html/
 
             echo '✅ Deploy finalizado com sucesso'
           EOF
