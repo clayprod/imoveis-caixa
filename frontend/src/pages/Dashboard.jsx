@@ -20,6 +20,7 @@ import {
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { useAuth } from '../contexts/AuthContext'
 import { Button } from '@/components/ui/button'
+import API_BASE_URL from '../config/api'
 
 // Mock data
 const marketData = [
@@ -43,7 +44,7 @@ const recentProperties = [
     discount: 32,
     financing: true,
     aiScore: 9.2,
-    image: '/api/placeholder/300/200'
+    image: `${API_BASE_URL}/placeholder/300/200`
   },
   {
     id: 2,
@@ -56,7 +57,7 @@ const recentProperties = [
     discount: 30,
     financing: false,
     aiScore: 8.7,
-    image: '/api/placeholder/300/200'
+    image: `${API_BASE_URL}/placeholder/300/200`
   },
   {
     id: 3,
@@ -69,7 +70,7 @@ const recentProperties = [
     discount: 30,
     financing: true,
     aiScore: 8.9,
-    image: '/api/placeholder/300/200'
+    image: `${API_BASE_URL}/placeholder/300/200`
   }
 ]
 
