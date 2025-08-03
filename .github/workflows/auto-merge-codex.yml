@@ -30,9 +30,3 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           merge-method: squash
-
-      - name: Auto-merge PR
-        uses: peter-evans/auto-merge@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          merge-method: squash
