@@ -23,15 +23,19 @@ jobs:
             cd ~/imoveis-caixa-final
             git pull origin main
 
-            echo '📦 Atualizando backend'
+            echo '📦 Atualizando backend...'
             cd backend
             source venv/bin/activate
             pip install -r requirements.txt
 
-            echo '🌐 Atualizando frontend'
+            echo '🔄 Reiniciando serviço do backend (systemd)...'
+            sudo systemctl daemon-reload
+            sudo systemctl restart imoveis-api
+
+            echo '🌐 Atualizando frontend...'
             cd ../frontend
             npm install --legacy-peer-deps
             npm run build
 
-            echo '✅ Deploy finalizado com sucesso'
+            echo '✅ Deploy finalizado com sucesso!'
           EOF
