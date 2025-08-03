@@ -9,6 +9,7 @@ from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.analysis import analysis_bp
 from src.routes.financing import financing_bp
+from src.routes.auth import auth_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
@@ -20,6 +21,7 @@ CORS(app)
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
 app.register_blueprint(financing_bp, url_prefix='/api/financing')
+app.register_blueprint(auth_bp, url_prefix='/api/auth')
 
 # uncomment if you need to use database
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
