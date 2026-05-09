@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from typing import Optional
 
 import httpx
@@ -35,18 +36,43 @@ async def _geocode(client: httpx.AsyncClient, query: str) -> tuple[Optional[floa
     return float(data[0]["lat"]), float(data[0]["lon"])
 
 
-def _build_query(row: dict) -> str:
+def _clean_street(value: str) -> str:
+    text = value.split(" - CEP:")[0]
+    text = re.sub(r"\bN\.?\s*S/?N\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(NR|N|NUM|NUMERO|NÚMERO)\.?\s*[,:\-]?\s*\S+", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(QUADRA|QUARTEIR[AÃ]O|QD|LOTE|LT)\b.*$", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip(" ,.-")
+
+
+def _bairro_variants(value: str | None) -> list[str]:
+    if not value:
+        return []
+    raw = value.strip()
+    simplified = re.sub(r"^BAIRRO\s+", "", raw, flags=re.IGNORECASE).strip()
+    return list(dict.fromkeys(v for v in [raw, simplified] if v))
+
+
+def _build_queries(row: dict) -> list[str]:
     parts: list[str] = []
     if row.get("endereco"):
-        parts.append(row["endereco"].split(" - CEP:")[0])  # corta CEP pra ajudar matching
-    if row.get("bairro"):
-        parts.append(row["bairro"])
+        street = _clean_street(row["endereco"])
+        if street:
+            parts.append(street)
+    bairros = _bairro_variants(row.get("bairro"))
+    if bairros:
+        parts.append(bairros[0])
     if row.get("cidade"):
         parts.append(row["cidade"])
     if row.get("uf"):
         parts.append(row["uf"])
     parts.append("Brasil")
-    return ", ".join(parts)
+
+    queries = [", ".join(parts)]
+    for bairro in bairros:
+        queries.append(", ".join([bairro, row.get("cidade", ""), row.get("uf", ""), "Brasil"]))
+    queries.append(", ".join([row.get("cidade", ""), row.get("uf", ""), "Brasil"]))
+    return list(dict.fromkeys(q for q in queries if q and not q.startswith(",")))
 
 
 async def run_geocode(limit: int = 50) -> dict:
@@ -72,9 +98,13 @@ async def run_geocode(limit: int = 50) -> dict:
 
         async with httpx.AsyncClient(headers=headers) as client:
             for row in rows:
-                query = _build_query(row)
+                lat = lon = None
                 try:
-                    lat, lon = await _geocode(client, query)
+                    for query in _build_queries(row):
+                        lat, lon = await _geocode(client, query)
+                        if lat is not None:
+                            break
+                        await asyncio.sleep(1.05)
                 except Exception:
                     failed += 1
                     await asyncio.sleep(1.05)
