@@ -58,6 +58,7 @@ async def run_download_photos(limit: int = 100, concurrency: int = 8) -> dict:
                 FROM property_photos ph
                 JOIN properties p ON p.id = ph.property_id
                 WHERE ph.local_path IS NULL
+                  AND ph.failure_count < 3
                 ORDER BY ph.property_id, ph.ordinal
                 LIMIT %s
                 """,
@@ -80,8 +81,21 @@ async def run_download_photos(limit: int = 100, concurrency: int = 8) -> dict:
                 async with sem:
                     try:
                         size = await _download(client, url, dest)
-                    except Exception:
-                        failed += 1
+                    except Exception as exc:
+                        async with lock:
+                            with conn.cursor() as cur:
+                                cur.execute(
+                                    """
+                                    UPDATE property_photos
+                                    SET download_failed_at=now(),
+                                        download_error=%s,
+                                        failure_count=failure_count + 1
+                                    WHERE id=%s
+                                    """,
+                                    (str(exc)[:500], row["id"]),
+                                )
+                            conn.commit()
+                            failed += 1
                         return
                 async with lock:
                     with conn.cursor() as cur:
