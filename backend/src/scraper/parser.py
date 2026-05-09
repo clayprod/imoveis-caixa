@@ -42,6 +42,7 @@ class DetailExtract:
     valor_leilao_1: Optional[Decimal] = None
     valor_leilao_2: Optional[Decimal] = None
     corretores_cidade_id: Optional[str] = None
+    photo_urls: list[str] = field(default_factory=list)
     formas_pagamento: list[str] = field(default_factory=list)
     regras_despesas: dict[str, str] = field(default_factory=dict)
 
@@ -153,6 +154,8 @@ _RE_BR_SPLIT = re.compile(r"<br\s*/?>", re.I)
 _RE_DESCRICAO_BANHEIROS = re.compile(r"(\d+)\s*Banheiros?", re.I)
 _RE_DESCRICAO_WC = re.compile(r"\bWc\b", re.I)
 _RE_DESCRICAO_VAGAS = re.compile(r"(\d+)\s*Vaga", re.I)
+_RE_PHOTO_SRC = re.compile(r"""src\s*=\s*['"]([^'"]*/fotos/[^'"]+\.(?:jpg|jpeg|png))['"]""", re.I)
+_RE_PHOTO_PREVIEW = re.compile(r"""preview\.src\s*=\s*['"]([^'"]*/fotos/[^'"]+\.(?:jpg|jpeg|png))['"]""", re.I)
 
 
 def parse_detail(html: str) -> DetailExtract:
@@ -223,6 +226,12 @@ def parse_detail(html: str) -> DetailExtract:
         out.numero_item = m.group(1).strip() or None
     if m := _RE_CORRETORES_CALL.search(html):
         out.corretores_cidade_id = m.group(1)
+
+    photos: list[str] = []
+    for rx in (_RE_PHOTO_SRC, _RE_PHOTO_PREVIEW):
+        for m in rx.finditer(html):
+            photos.append(m.group(1).strip())
+    out.photo_urls = list(dict.fromkeys(photos))
 
     if m := _RE_DATA_LICITACAO.search(html):
         dt = _parse_dt_brt(m.group(1))

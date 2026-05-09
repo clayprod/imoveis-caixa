@@ -138,6 +138,13 @@ UPDATE properties SET
 WHERE id = %(property_id)s;
 """
 
+_INSERT_PHOTO = """
+INSERT INTO property_photos (property_id, ordinal, source_url)
+VALUES (%s, %s, %s)
+ON CONFLICT (property_id, source_url) DO UPDATE SET
+    ordinal = EXCLUDED.ordinal;
+"""
+
 _UPSERT_ATTEMPT = """
 INSERT INTO scrape_attempts (property_id, last_attempt_at, last_status, last_http_code, last_error, attempts)
 VALUES (%(property_id)s, now(), %(status)s, %(http_code)s, %(error)s, 1)
@@ -244,6 +251,8 @@ async def _scrape_one(
             with conn.cursor() as cur:
                 cur.execute(_UPSERT_DETAIL, params)
                 cur.execute(_PATCH_PROPERTIES, params)
+                for idx, url in enumerate(ext.photo_urls, start=1):
+                    cur.execute(_INSERT_PHOTO, (pid, idx, url))
                 cur.execute(_UPSERT_ATTEMPT, {
                     "property_id": pid, "status": "ok",
                     "http_code": 200, "error": None,

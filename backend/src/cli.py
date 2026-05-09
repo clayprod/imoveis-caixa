@@ -126,6 +126,17 @@ def cmd_download_matriculas(args: argparse.Namespace) -> int:
     return 0 if res["failed"] == 0 else 1
 
 
+def cmd_download_photos(args: argparse.Namespace) -> int:
+    import asyncio
+    from src.scraper.photo_downloader import run_download_photos
+    res = asyncio.run(run_download_photos(limit=args.limit, concurrency=args.concurrency))
+    print(
+        f"[photos] total={res['total']} ok={res['ok']} "
+        f"failed={res['failed']} bytes={res['bytes']}"
+    )
+    return 0 if res["failed"] == 0 else 1
+
+
 def cmd_geocode(args: argparse.Namespace) -> int:
     import asyncio
     from src.enrichment.geocoder import run_geocode
@@ -195,6 +206,11 @@ def main(argv: list[str] | None = None) -> int:
     dm.add_argument("--limit", type=int, default=100)
     dm.add_argument("--concurrency", type=int, default=5)
     dm.set_defaults(func=cmd_download_matriculas)
+
+    dp = sub.add_parser("download-photos", help="Baixa fotos da galeria dos imoveis")
+    dp.add_argument("--limit", type=int, default=100)
+    dp.add_argument("--concurrency", type=int, default=8)
+    dp.set_defaults(func=cmd_download_photos)
 
     geo = sub.add_parser("geocode", help="Preenche lat/lon via Nominatim")
     geo.add_argument("--limit", type=int, default=50)

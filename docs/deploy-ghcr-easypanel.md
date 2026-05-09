@@ -43,6 +43,7 @@ CAIXA_PROXY_TOKEN=...
 NOMINATIM_URL=https://nominatim.openstreetmap.org
 OCR_INITIAL_SAMPLE_SIZE=50
 OCR_MAX_INPUT_CHARS=20000
+PHOTO_DIR=/data/photos
 EVOLUTION_INSTANCE_NAME=claytoncosta
 N8N_DEFAULT_REMOTE_JID=
 ```
@@ -57,6 +58,7 @@ Endpoints disponíveis:
 - `POST /trigger-ingest`
 - `POST /trigger-scrape?limit=1000&concurrency=15&scope=pending`
 - `POST /trigger-matriculas?limit=500&concurrency=5`
+- `POST /trigger-photos?limit=500&concurrency=8`
 - `POST /trigger-geocode?limit=50`
 - `POST /trigger-ocr?limit=10`
 - `POST /trigger-embed?limit=500&batch=50`
@@ -73,6 +75,7 @@ Authorization: Bearer <WEBHOOK_TOKEN>
 - Ingest: upsert por `numero_imovel` e soft-delete para removidos.
 - Scrape: `pending` processa apenas imóveis sem detalhe.
 - Matrículas: baixa apenas quando ainda não há linha em `matricula_extracts`.
+- Fotos: baixa apenas registros de `property_photos` sem `local_path`.
 - Geocode: processa apenas `geocoded_at IS NULL`.
 - OCR: processa apenas `ocr_text IS NULL`, limitado a amostra inicial e imóveis que batem em watchlist ativa.
 - Embeddings: processa apenas imóveis sem linha em `property_embeddings`.

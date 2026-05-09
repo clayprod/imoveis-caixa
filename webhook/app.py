@@ -6,6 +6,7 @@ Endpoints:
   - POST /trigger-ingest
   - POST /trigger-scrape       (?limit=1000&concurrency=15&scope=pending)
   - POST /trigger-matriculas   (?limit=500&concurrency=5)
+  - POST /trigger-photos       (?limit=500&concurrency=8)
   - POST /trigger-geocode      (?limit=50)
   - POST /trigger-ocr          (?limit=10)
   - POST /trigger-embed        (?limit=500&batch=50)
@@ -67,6 +68,7 @@ def _run(cli_args: list[str], mount_data: bool = False) -> RunResult:
             "OPENAI_EMBED_MODEL": os.environ.get("OPENAI_EMBED_MODEL", "text-embedding-3-small"),
             "OCR_INITIAL_SAMPLE_SIZE": os.environ.get("OCR_INITIAL_SAMPLE_SIZE", "50"),
             "OCR_MAX_INPUT_CHARS": os.environ.get("OCR_MAX_INPUT_CHARS", "20000"),
+            "PHOTO_DIR": os.environ.get("PHOTO_DIR", "/data/photos"),
             "NOMINATIM_URL": os.environ.get("NOMINATIM_URL", "https://nominatim.openstreetmap.org"),
             "CRAWLER_USER_AGENT": os.environ.get("CRAWLER_USER_AGENT", ""),
         },
@@ -125,6 +127,19 @@ def trigger_matriculas(
     _check_auth(authorization)
     return _run(
         ["download-matriculas", "--limit", str(limit), "--concurrency", str(concurrency)],
+        mount_data=True,
+    )
+
+
+@app.post("/trigger-photos", response_model=RunResult)
+def trigger_photos(
+    limit: int = 500,
+    concurrency: int = 8,
+    authorization: Optional[str] = Header(None),
+) -> RunResult:
+    _check_auth(authorization)
+    return _run(
+        ["download-photos", "--limit", str(limit), "--concurrency", str(concurrency)],
         mount_data=True,
     )
 
