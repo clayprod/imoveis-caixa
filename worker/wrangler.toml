@@ -1,0 +1,10 @@
+name = "imoveis-caixa-proxy"
+main = "src/index.js"
+compatibility_date = "2026-04-01"
+
+# Comando de deploy via wrangler CLI:
+#   npm i -g wrangler && wrangler login
+#   wrangler deploy
+#   wrangler secret put PROXY_TOKEN  (cola o token quando pedir)
+#
+# Alternativa pelo dashboard: ver worker/README.md

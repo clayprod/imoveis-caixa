@@ -1,53 +1,69 @@
-name: Deploy para EC2 após merge na main
+name: Build and Deploy
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
 
 jobs:
-  deploy:
-    name: Deploy na EC2
+  build-images:
+    name: Build ${{ matrix.name }} image
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        include:
+          - name: ingest
+            image: imoveis-caixa-ingest
+            dockerfile: backend/Dockerfile
+          - name: webhook
+            image: imoveis-caixa-webhook
+            dockerfile: webhook/Dockerfile
     steps:
-      - name: 🔐 Configurar acesso SSH
-        uses: webfactory/ssh-agent@v0.9.0
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🛰️ Conectar e deployar via SSH
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  trigger-easypanel:
+    name: Trigger EasyPanel
+    runs-on: ubuntu-latest
+    needs: build-images
+    env:
+      EASYPANEL_DEPLOY_WEBHOOK_URL: ${{ secrets.EASYPANEL_DEPLOY_WEBHOOK_URL }}
+    steps:
+      - name: Trigger deploy webhook
+        if: ${{ env.EASYPANEL_DEPLOY_WEBHOOK_URL != '' }}
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            echo '🚀 Entrando no diretório do projeto...'
-            cd ~/imoveis-caixa-final
-
-            echo '🧹 Limpando arquivos locais não rastreados...'
-            git reset --hard
-            git clean -fd
-
-            echo '📥 Pullando últimos commits da main...'
-            git pull origin main
-
-            echo '📦 Atualizando backend...'
-            cd backend
-            source venv/bin/activate
-            pip install -r requirements.txt
-
-            echo '🔄 Reiniciando serviço do backend (systemd)...'
-            sudo systemctl restart imoveis-api
-
-            echo '🌐 Atualizando frontend...'
-            cd ../frontend
-            npm install --legacy-peer-deps
-            npm run build
-
-            echo '📁 Copiando arquivos da build para o Nginx...'
-            sudo rm -rf /var/www/html/*
-            sudo cp -r dist/* /var/www/html/
-
-            echo '✅ Deploy finalizado com sucesso'
-          EOF
+          curl -fsS -X POST "$EASYPANEL_DEPLOY_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{"images":["ghcr.io/${{ github.repository_owner }}/imoveis-caixa-ingest:latest","ghcr.io/${{ github.repository_owner }}/imoveis-caixa-webhook:latest"]}'

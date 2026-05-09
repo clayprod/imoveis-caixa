@@ -5,12 +5,39 @@ frontend/package-lock.json
 
 # Python
 backend/venv/
-backend/__pycache__/
-backend/src/**/__pycache__/
+.venv/
+**/__pycache__/
+*.pyc
 backend/composer.lock
 backend/vendor/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env / segredos
+.env
+.env.*
+!.env.example
 backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.local
+
+# Dados locais (CSVs baixados, dumps, OCR cache, embeddings cache)
+data/raw/
+data/processed/
+data/matriculas/
+data/cache/
+*.csv
 
 # Outros
 *.log
 .DS_Store
+desktop.ini
+nohup.out
+
+# Tools locais (helpers SSH/etc — nunca commitar)
+.local-tools/
+.claude/
+.agents/
