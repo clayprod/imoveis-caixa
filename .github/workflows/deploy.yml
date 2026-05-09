@@ -27,6 +27,10 @@ jobs:
             image: imoveis-caixa-webhook
             alias: imoveis-caixa/imoveis-webhook
             dockerfile: webhook/Dockerfile
+          - name: frontend
+            image: imoveis-caixa-frontend
+            alias: imoveis-caixa/imoveis-frontend
+            dockerfile: frontend/Dockerfile
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,4 +74,4 @@ jobs:
         run: |
           curl -fsS -X POST "$EASYPANEL_DEPLOY_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d '{"images":["ghcr.io/${{ github.repository_owner }}/imoveis-caixa-ingest:latest","ghcr.io/${{ github.repository_owner }}/imoveis-caixa-webhook:latest"]}'
+            -d '{"images":["ghcr.io/${{ github.repository_owner }}/imoveis-caixa-ingest:latest","ghcr.io/${{ github.repository_owner }}/imoveis-caixa-webhook:latest","ghcr.io/${{ github.repository_owner }}/imoveis-caixa-frontend:latest"]}'
