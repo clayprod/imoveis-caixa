@@ -1,0 +1,221 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   IMÓVEIS CAIXA PRO — design system
+   Aesthetic: editorial brasileiro contemporâneo. Verde-musgo + dourado
+   queimado. Tipografia: Plus Jakarta Sans (display) + IBM Plex (body+mono).
+   Refinado, não decorativo. Sem "AI slop".
+===================================================================== */
+
+@theme {
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* paleta principal — verde-musgo / off-white quente / dourado queimado */
+  --color-canvas-start: #e8efe2;
+  --color-canvas-end: #cfdcc3;
+  --color-paper: #f7f5ef;
+  --color-paper-soft: #efece4;
+  --color-ink: #1a221b;
+  --color-ink-soft: #4a544c;
+  --color-ink-mute: #7e8581;
+  --color-line: #dcdcd2;
+
+  --color-moss-50: #f1f5ec;
+  --color-moss-100: #d6e0c8;
+  --color-moss-300: #a3b894;
+  --color-moss-500: #6f8861;
+  --color-moss-700: #3f5235;
+  --color-moss-900: #1f2a1a;
+
+  --color-amber: #c89a3a;        /* dourado queimado, p/ destaque */
+  --color-amber-soft: #e6c478;
+  --color-rust: #c2683f;         /* laranja queimado, p/ desconto/alerta */
+  --color-rust-soft: #e6a07a;
+
+  --color-success: #4a7c43;
+  --color-warn: #c89236;
+  --color-danger: #b14b3b;
+
+  /* radii */
+  --radius-card: 22px;
+  --radius-pill: 999px;
+  --radius-control: 12px;
+
+  /* shadows refinados — não exagerados */
+  --shadow-soft: 0 1px 2px rgba(26,34,27,0.04), 0 8px 24px -12px rgba(26,34,27,0.10);
+  --shadow-lift: 0 2px 4px rgba(26,34,27,0.05), 0 18px 40px -16px rgba(26,34,27,0.16);
+  --shadow-pop:  0 1px 2px rgba(26,34,27,0.06), 0 28px 60px -20px rgba(26,34,27,0.22);
+}
+
+/* base */
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-feature-settings: "ss01", "cv01", "cv09", "cv11";
+  background: linear-gradient(155deg, var(--color-canvas-start) 0%, var(--color-canvas-end) 100%);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* texturinha de papel — sutil, não decorativa */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle at 0% 0%, rgba(255,255,255,0.4) 0%, transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(31,42,26,0.05) 0%, transparent 50%);
+  mix-blend-mode: soft-light;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* tipografia display */
+.font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+.font-mono { font-family: var(--font-mono); }
+
+/* glass card — refinado, sem exagero */
+.card-glass {
+  background: color-mix(in oklab, var(--color-paper) 92%, transparent);
+  backdrop-filter: blur(14px) saturate(108%);
+  -webkit-backdrop-filter: blur(14px) saturate(108%);
+  border: 1px solid color-mix(in oklab, var(--color-line) 70%, transparent);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.card-paper {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.pill {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  border-radius: var(--radius-pill);
+  padding: 0.35rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+
+.pill-line {
+  border-color: var(--color-line);
+  background: color-mix(in oklab, var(--color-paper) 70%, transparent);
+  color: var(--color-ink-soft);
+}
+
+.pill-ink {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.pill-amber {
+  background: color-mix(in oklab, var(--color-amber) 18%, var(--color-paper));
+  color: color-mix(in oklab, var(--color-amber) 85%, var(--color-ink));
+  border-color: color-mix(in oklab, var(--color-amber) 30%, transparent);
+}
+
+.pill-moss {
+  background: color-mix(in oklab, var(--color-moss-500) 14%, var(--color-paper));
+  color: var(--color-moss-700);
+  border-color: color-mix(in oklab, var(--color-moss-500) 25%, transparent);
+}
+
+.pill-rust {
+  background: color-mix(in oklab, var(--color-rust) 14%, var(--color-paper));
+  color: color-mix(in oklab, var(--color-rust) 80%, var(--color-ink));
+  border-color: color-mix(in oklab, var(--color-rust) 28%, transparent);
+}
+
+/* search input refinado */
+.input-line {
+  background: color-mix(in oklab, var(--color-paper) 86%, transparent);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  padding: 0.65rem 1.1rem;
+  font: 500 0.875rem/1.4 var(--font-body);
+  color: var(--color-ink);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.input-line::placeholder { color: var(--color-ink-mute); }
+.input-line:focus {
+  outline: none;
+  border-color: var(--color-moss-500);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-moss-500) 14%, transparent);
+}
+
+/* dot decorativo da identidade */
+.brand-mark {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--color-ink);
+  color: var(--color-amber);
+  display: grid; place-items: center;
+  font: 800 1.05rem var(--font-display);
+  letter-spacing: -0.04em;
+  box-shadow: var(--shadow-soft);
+}
+
+/* leaflet overrides — combina com tema */
+.leaflet-container {
+  background: #e8e2d4;
+  font-family: var(--font-body);
+  border-radius: var(--radius-card);
+}
+.leaflet-control-attribution {
+  font-size: 10px !important;
+  background: rgba(247,245,239,0.85) !important;
+  border-top-left-radius: 8px !important;
+}
+
+/* Tooltip rico — desliga estilos default do leaflet pra renderizar nosso card */
+.leaflet-tooltip.property-rich-tooltip {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  pointer-events: none;
+}
+.leaflet-tooltip.property-rich-tooltip::before { display: none !important; }
+
+/* heart anim */
+@keyframes heart-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.heart-pop { animation: heart-pop 280ms ease; }
+
+/* enter animations — staggerable */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rise-in { animation: rise-in 480ms cubic-bezier(.22,.61,.36,1) both; }
+
+/* scrollbar discreto */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--color-ink) 12%, transparent);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--color-ink) 22%, transparent);
+}

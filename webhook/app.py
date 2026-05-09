@@ -11,6 +11,7 @@ Endpoints:
   - POST /trigger-ocr          (?limit=10)
   - POST /trigger-embed        (?limit=500&batch=50)
   - POST /trigger-neighborhoods (?limit=20)
+  - POST /trigger-auction-reminders (?horizons=7d,1d,1h)
 """
 import os
 import time
@@ -179,3 +180,49 @@ def trigger_neighborhoods(
 ) -> RunResult:
     _check_auth(authorization)
     return _run(["neighborhoods", "--limit", str(limit)])
+
+
+@app.post("/trigger-auction-reminders", response_model=RunResult)
+def trigger_auction_reminders(
+    horizons: str = "7d,1d,1h",
+    authorization: Optional[str] = Header(None),
+) -> RunResult:
+    """Roda o detector de leilões iminentes vs watchlists.
+
+    Stdout (output_tail) é JSON:
+      {
+        "horizons_min": [...],
+        "matches": int,
+        "new_count": int,
+        "new_alerts": [
+          {
+            "alert_id": int, "reason": str, "leilao_n": int, "leilao_dt": iso,
+            "watchlist_name": str, "endereco": str, "cidade": str, "uf": str,
+            "preco_venda": float, "desconto_percentual": float,
+            "link_caixa": str,
+            "dispatch_targets": [
+              {"id": int, "label": str, "number": "+5511…", "instance": "claytoncosta"}
+            ]
+          }, ...
+        ]
+      }
+
+    O workflow n8n itera `new_alerts` × `dispatch_targets` e chama Evolution.
+    Após despachar com sucesso, n8n chama `/mark-alerts-delivered` com os ids."""
+    _check_auth(authorization)
+    return _run(["auction-reminders", "--horizons", horizons])
+
+
+class MarkDeliveredBody(BaseModel):
+    alert_ids: list[int]
+
+
+@app.post("/mark-alerts-delivered")
+def mark_alerts_delivered(
+    body: MarkDeliveredBody,
+    authorization: Optional[str] = Header(None),
+) -> dict:
+    """n8n chama isso após Evolution retornar 200 pra cada alert despachado."""
+    _check_auth(authorization)
+    # Roda direto via container ingest pra reusar conexão DB
+    return _run(["mark-alerts-delivered", "--ids", ",".join(str(i) for i in body.alert_ids)]).model_dump()

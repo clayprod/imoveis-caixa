@@ -5,6 +5,6 @@ RUN pip install --no-cache-dir \
     "uvicorn[standard]==0.34.0" \
     "docker==7.1.0" \
     "pydantic==2.10.4"
-COPY webhook/app.py .
+COPY app.py .
 EXPOSE 8090
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8090"]

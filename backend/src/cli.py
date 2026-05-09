@@ -169,6 +169,37 @@ def cmd_neighborhoods(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_mark_delivered(args: argparse.Namespace) -> int:
+    import json
+    from src.notifications.auction_reminders import mark_delivered
+    ids = [int(x) for x in args.ids.split(",") if x.strip()]
+    res = mark_delivered(ids)
+    print(json.dumps(res, ensure_ascii=False))
+    return 0
+
+
+def cmd_auction_reminders(args: argparse.Namespace) -> int:
+    """Dispara lembretes de leilão. Stdout (JSON) é parseado pelo n8n."""
+    import json
+    from src.notifications.auction_reminders import run_auction_reminders
+    horizons = None
+    if args.horizons:
+        horizons = []
+        for tok in args.horizons.split(","):
+            tok = tok.strip().lower()
+            if tok.endswith("d"):
+                horizons.append(int(tok[:-1]) * 1440)
+            elif tok.endswith("h"):
+                horizons.append(int(tok[:-1]) * 60)
+            elif tok.endswith("m"):
+                horizons.append(int(tok[:-1]))
+            else:
+                horizons.append(int(tok))
+    res = run_auction_reminders(horizons_min=horizons)
+    print(json.dumps(res, ensure_ascii=False, default=str))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="imoveis")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -201,6 +232,14 @@ def main(argv: list[str] | None = None) -> int:
     scr.add_argument("--limit", type=int, default=100)
     scr.add_argument("--concurrency", type=int, default=10)
     scr.set_defaults(func=cmd_scrape)
+
+    ar = sub.add_parser("auction-reminders", help="Dispara lembretes de leilão (n8n consome stdout JSON)")
+    ar.add_argument("--horizons", help="ex: '7d,1d,1h' (default 7d,1d,1h)")
+    ar.set_defaults(func=cmd_auction_reminders)
+
+    md = sub.add_parser("mark-alerts-delivered", help="Marca alerts como entregues (chamado pelo n8n)")
+    md.add_argument("--ids", required=True, help="IDs separados por vírgula")
+    md.set_defaults(func=cmd_mark_delivered)
 
     dm = sub.add_parser("download-matriculas", help="Baixa PDFs de matrícula")
     dm.add_argument("--limit", type=int, default=100)

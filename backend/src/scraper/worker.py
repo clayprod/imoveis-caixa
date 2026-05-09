@@ -91,13 +91,15 @@ INSERT INTO property_details (
     link_corretores, link_pregoeiro, raw_html, last_scraped_at,
     nome_empreendimento, situacao, descricao_full, endereco_full,
     corretores_cidade_id, nome_leiloeiro, edital, numero_item,
-    data_leilao_1, data_leilao_2, valor_leilao_1, valor_leilao_2, link_edital_pdf
+    data_leilao_1, data_leilao_2, valor_leilao_1, valor_leilao_2, link_edital_pdf,
+    riscos_juridicos, riscos_juridicos_raw
 ) VALUES (
     %(property_id)s, %(formas_pagamento)s, %(regras_despesas)s, %(link_matricula_pdf)s,
     NULL, %(link_pregoeiro)s, NULL, now(),
     %(nome_empreendimento)s, %(situacao)s, %(descricao_full)s, %(endereco_full)s,
     %(corretores_cidade_id)s, %(nome_leiloeiro)s, %(edital)s, %(numero_item)s,
-    %(data_leilao_1)s, %(data_leilao_2)s, %(valor_leilao_1)s, %(valor_leilao_2)s, %(link_edital_pdf)s
+    %(data_leilao_1)s, %(data_leilao_2)s, %(valor_leilao_1)s, %(valor_leilao_2)s, %(link_edital_pdf)s,
+    %(riscos_juridicos)s, %(riscos_juridicos_raw)s
 )
 ON CONFLICT (property_id) DO UPDATE SET
     formas_pagamento = EXCLUDED.formas_pagamento,
@@ -117,7 +119,9 @@ ON CONFLICT (property_id) DO UPDATE SET
     data_leilao_2 = EXCLUDED.data_leilao_2,
     valor_leilao_1 = EXCLUDED.valor_leilao_1,
     valor_leilao_2 = EXCLUDED.valor_leilao_2,
-    link_edital_pdf = EXCLUDED.link_edital_pdf;
+    link_edital_pdf = EXCLUDED.link_edital_pdf,
+    riscos_juridicos = EXCLUDED.riscos_juridicos,
+    riscos_juridicos_raw = EXCLUDED.riscos_juridicos_raw;
 """
 
 # Atualiza properties com campos de qualidade melhor que vieram do detalhe.
@@ -162,6 +166,8 @@ def _to_params(property_id: int, ext: DetailExtract) -> dict:
         "property_id": property_id,
         "formas_pagamento": json.dumps(ext.formas_pagamento, ensure_ascii=False),
         "regras_despesas": json.dumps(ext.regras_despesas, ensure_ascii=False),
+        "riscos_juridicos": json.dumps(ext.riscos_juridicos, ensure_ascii=False),
+        "riscos_juridicos_raw": ext.riscos_juridicos_raw,
         "link_matricula_pdf": ext.link_matricula_pdf,
         "link_pregoeiro": ext.link_pregoeiro,
         "nome_empreendimento": ext.nome_empreendimento,

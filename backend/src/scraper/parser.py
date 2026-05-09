@@ -45,6 +45,9 @@ class DetailExtract:
     photo_urls: list[str] = field(default_factory=list)
     formas_pagamento: list[str] = field(default_factory=list)
     regras_despesas: dict[str, str] = field(default_factory=dict)
+    # Riscos jurídicos averbados na matrícula (taxonomia + raw text)
+    riscos_juridicos: list[str] = field(default_factory=list)
+    riscos_juridicos_raw: Optional[str] = None
 
 
 _TAG_RE = re.compile(r"<[^>]+>")
@@ -146,6 +149,29 @@ _RE_CORRETORES_CALL = re.compile(
 _RE_FORMAS_BLOCK = re.compile(
     r"FORMAS DE PAGAMENTO ACEITAS:(.*?)(?:REGRAS PARA PAGAMENTO|</p>)", re.S | re.I
 )
+# Padrões de risco jurídico que aparecem como linhas avulsas no bloco
+# de informações (geralmente abaixo das regras de despesas).
+_RISCO_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"gravame", re.I), "gravame"),
+    (re.compile(r"penhora", re.I), "penhora"),
+    (re.compile(r"indisponibilidade", re.I), "indisponibilidade"),
+    (re.compile(r"hipoteca", re.I), "hipoteca"),
+    (re.compile(r"a[çc][ãa]o\s+judicial", re.I), "acao_judicial"),
+    (re.compile(r"lit[íi]gio", re.I), "litigio"),
+    (re.compile(r"regulariza[çc][ãa]o\s+por\s+conta\s+do\s+adquirente", re.I), "regularizacao_adquirente"),
+    (re.compile(r"d[íi]vida\s+ativa", re.I), "divida_ativa"),
+    (re.compile(r"usucapi[ãa]o", re.I), "usucapiao"),
+    (re.compile(r"invas[ãa]o|invadid", re.I), "invasao"),
+]
+
+# Frases-marker que indicam linha de risco (caso o regex acima não case
+# mas a linha começa com um marker conhecido).
+_RISCO_LINE_RE = re.compile(
+    r"<i[^>]*></i>[^<]*?(im[óo]vel\s+com|regulariza[çc][ãa]o|gravame|penhora|indisponibilidade|hipoteca|a[çc][ãa]o\s+judicial|lit[íi]gio|d[íi]vida\s+ativa|usucapi[ãa]o|invas|sob\s+lit[íi]gio)[^<]+",
+    re.I,
+)
+
+
 _RE_REGRAS_BLOCK = re.compile(
     r"REGRAS PARA PAGAMENTO DAS DESPESAS[^:]*:(.*?)(?:<br\s*/?>\s*<br|</p>)",
     re.S | re.I,
@@ -266,5 +292,34 @@ def parse_detail(html: str) -> DetailExtract:
                 out.regras_despesas[k.strip().lower()] = v.strip().rstrip(".")
             else:
                 out.regras_despesas.setdefault("outros", text)
+
+    # ==== Riscos jurídicos ====
+    # Esses bullets aparecem fora do bloco de "regras de despesas", próximo
+    # ao final do card de informações (junto de "Corretores credenciados").
+    raw_lines: list[str] = []
+    seen_categorias: set[str] = set()
+
+    # 1) Linhas marker-based no HTML cru
+    for m in _RISCO_LINE_RE.finditer(html):
+        line = _strip_tags(m.group(0)).strip().rstrip(".")
+        if line and len(line) >= 6:
+            raw_lines.append(line)
+
+    # 2) Também escaneia o que entrou em regras_despesas['outros'] e formas_pagamento
+    extra_corpus = []
+    if "outros" in out.regras_despesas:
+        extra_corpus.append(out.regras_despesas["outros"])
+    extra_corpus.extend(out.formas_pagamento)
+    extra_corpus.extend(raw_lines)
+
+    for line in extra_corpus:
+        for pat, key in _RISCO_PATTERNS:
+            if pat.search(line):
+                seen_categorias.add(key)
+
+    if seen_categorias:
+        out.riscos_juridicos = sorted(seen_categorias)
+    if raw_lines:
+        out.riscos_juridicos_raw = " | ".join(dict.fromkeys(raw_lines))
 
     return out
