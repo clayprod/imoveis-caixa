@@ -21,9 +21,11 @@ jobs:
         include:
           - name: ingest
             image: imoveis-caixa-ingest
+            alias: imoveis-caixa/imoveis-ingest
             dockerfile: backend/Dockerfile
           - name: webhook
             image: imoveis-caixa-webhook
+            alias: imoveis-caixa/imoveis-webhook
             dockerfile: webhook/Dockerfile
     steps:
       - name: Checkout
@@ -40,7 +42,9 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+          images: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.alias }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-

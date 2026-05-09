@@ -7,6 +7,8 @@ Fluxo desejado:
 3. Imagens publicadas:
    - `ghcr.io/clayprod/imoveis-caixa-ingest:latest`
    - `ghcr.io/clayprod/imoveis-caixa-webhook:latest`
+   - `ghcr.io/clayprod/imoveis-caixa/imoveis-ingest:latest`
+   - `ghcr.io/clayprod/imoveis-caixa/imoveis-webhook:latest`
 4. EasyPanel recebe um webhook de deploy e puxa as imagens novas.
 
 ## Secrets no GitHub
