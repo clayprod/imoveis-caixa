@@ -14,5 +14,7 @@ COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/src ./src
+COPY backend/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
-ENTRYPOINT ["python", "-m", "src.cli"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
