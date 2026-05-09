@@ -67,21 +67,25 @@ async def run_download_photos(limit: int = 100, concurrency: int = 8) -> dict:
             rows = cur.fetchall()
 
         if not rows:
-            return {"total": 0, "ok": 0, "failed": 0, "bytes": 0}
+            return {"total": 0, "ok": 0, "missing": 0, "failed": 0, "bytes": 0}
 
         sem = asyncio.Semaphore(concurrency)
         lock = asyncio.Lock()
-        ok = failed = total_bytes = 0
+        ok = failed = missing = total_bytes = 0
 
         async with httpx.AsyncClient(headers=headers, follow_redirects=True) as client:
             async def _work(row: dict) -> None:
-                nonlocal ok, failed, total_bytes
+                nonlocal ok, failed, missing, total_bytes
                 url = _photo_url(row["source_url"])
                 dest = DEST_DIR / f"{row['numero_imovel']}_{row['ordinal']:02d}{_ext(row['source_url'])}"
                 async with sem:
                     try:
                         size = await _download(client, url, dest)
                     except Exception as exc:
+                        is_missing = (
+                            isinstance(exc, httpx.HTTPStatusError)
+                            and exc.response.status_code == 404
+                        )
                         async with lock:
                             with conn.cursor() as cur:
                                 cur.execute(
@@ -95,7 +99,10 @@ async def run_download_photos(limit: int = 100, concurrency: int = 8) -> dict:
                                     (str(exc)[:500], row["id"]),
                                 )
                             conn.commit()
-                            failed += 1
+                            if is_missing:
+                                missing += 1
+                            else:
+                                failed += 1
                         return
                 async with lock:
                     with conn.cursor() as cur:
@@ -113,4 +120,10 @@ async def run_download_photos(limit: int = 100, concurrency: int = 8) -> dict:
 
             await asyncio.gather(*(_work(r) for r in rows))
 
-        return {"total": len(rows), "ok": ok, "failed": failed, "bytes": total_bytes}
+        return {
+            "total": len(rows),
+            "ok": ok,
+            "missing": missing,
+            "failed": failed,
+            "bytes": total_bytes,
+        }

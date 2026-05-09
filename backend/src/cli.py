@@ -132,7 +132,7 @@ def cmd_download_photos(args: argparse.Namespace) -> int:
     res = asyncio.run(run_download_photos(limit=args.limit, concurrency=args.concurrency))
     print(
         f"[photos] total={res['total']} ok={res['ok']} "
-        f"failed={res['failed']} bytes={res['bytes']}"
+        f"missing={res['missing']} failed={res['failed']} bytes={res['bytes']}"
     )
     return 0 if res["failed"] == 0 else 1
 
