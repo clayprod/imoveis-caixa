@@ -13,6 +13,21 @@ const TYPE_LABEL = {
   comercial: 'Comercial',
 }
 
+function getFavoriteIds() {
+  try {
+    return JSON.parse(localStorage.getItem('favorite_property_ids') || '[]')
+  } catch {
+    return []
+  }
+}
+
+function setFavoriteId(id, active) {
+  const ids = new Set(getFavoriteIds().map(String))
+  if (active) ids.add(String(id))
+  else ids.delete(String(id))
+  localStorage.setItem('favorite_property_ids', JSON.stringify([...ids]))
+}
+
 function brl(n) {
   if (n == null) return '—'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n)
@@ -29,7 +44,7 @@ function MetaItem({ icon: Icon, value, suffix }) {
 }
 
 export default function PropertyCard({ property, onClick, onFavorite }) {
-  const [fav, setFav] = useState(property.favorited)
+  const [fav, setFav] = useState(() => property.favorited ?? getFavoriteIds().map(String).includes(String(property.id)))
   const fmtType = TYPE_LABEL[property.tipo_imovel] ?? property.tipo_imovel ?? '—'
   const area = property.area_total_m2 ?? property.area_terreno_m2
 
@@ -68,8 +83,10 @@ export default function PropertyCard({ property, onClick, onFavorite }) {
         <button
           onClick={(e) => {
             e.stopPropagation()
-            setFav((v) => !v)
-            onFavorite?.(!fav)
+            const next = !fav
+            setFav(next)
+            setFavoriteId(property.id, next)
+            onFavorite?.(next)
           }}
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-line)] transition-colors ${
             fav ? 'bg-[var(--color-amber)] text-white' : 'bg-[var(--color-paper)] text-[var(--color-ink-mute)] hover:text-[var(--color-amber)]'

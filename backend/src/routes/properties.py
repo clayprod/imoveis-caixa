@@ -299,3 +299,83 @@ def property_filters():
         "cidades": [{"value": r["cidade"], "label": r["cidade"]} for r in cidades],
         "bairros": [{"value": r["bairro"], "label": r["bairro"]} for r in bairros],
     })
+
+
+@properties_bp.get("/properties/stats")
+def property_stats():
+    with _conn() as conn:
+        totals = conn.execute(
+            """
+            SELECT
+              count(*) FILTER (WHERE p.status = 'active') AS total_active,
+              count(*) FILTER (WHERE p.status = 'active' AND p.desconto_percentual >= 30) AS opportunities,
+              avg(p.preco_venda) FILTER (WHERE p.status = 'active') AS avg_price,
+              avg(p.desconto_percentual) FILTER (WHERE p.status = 'active') AS avg_discount,
+              count(DISTINCT p.cidade) FILTER (WHERE p.status = 'active') AS cities,
+              count(DISTINCT p.bairro) FILTER (WHERE p.status = 'active' AND p.bairro IS NOT NULL) AS bairros
+            FROM properties p
+            """
+        ).fetchone()
+        coverage = conn.execute(
+            """
+            SELECT
+              (SELECT count(*) FROM property_details) AS details,
+              (SELECT count(DISTINCT property_id) FROM property_photos WHERE source_url IS NOT NULL) AS photos,
+              (SELECT count(*) FROM matricula_extracts) AS matriculas,
+              (SELECT count(*) FROM neighborhoods) AS neighborhoods,
+              (SELECT count(*) FROM property_embeddings) AS embeddings
+            """
+        ).fetchone()
+        city_rows = conn.execute(
+            """
+            SELECT cidade, uf, count(*) AS total
+            FROM properties
+            WHERE status = 'active' AND cidade IS NOT NULL
+            GROUP BY cidade, uf
+            ORDER BY total DESC
+            LIMIT 5
+            """
+        ).fetchall()
+        trend_rows = conn.execute(
+            """
+            SELECT to_char(date_trunc('month', last_seen_at), 'Mon') AS month,
+                   count(*) AS properties,
+                   avg(preco_venda) AS avg_price,
+                   count(*) FILTER (WHERE desconto_percentual >= 30) AS opportunities
+            FROM properties
+            WHERE status = 'active'
+            GROUP BY date_trunc('month', last_seen_at)
+            ORDER BY date_trunc('month', last_seen_at) DESC
+            LIMIT 6
+            """
+        ).fetchall()
+
+    colors = ["#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#6B7280"]
+    total_for_cities = sum(int(r["total"]) for r in city_rows) or 1
+    return jsonify({
+        "total_active": totals["total_active"],
+        "opportunities": totals["opportunities"],
+        "avg_price": float(totals["avg_price"]) if totals["avg_price"] is not None else None,
+        "avg_discount": float(totals["avg_discount"]) if totals["avg_discount"] is not None else None,
+        "cities": totals["cities"],
+        "bairros": totals["bairros"],
+        "coverage": dict(coverage),
+        "city_distribution": [
+            {
+                "name": f"{r['cidade']}/{r['uf']}",
+                "value": round((int(r["total"]) / total_for_cities) * 100, 1),
+                "count": int(r["total"]),
+                "color": colors[i % len(colors)],
+            }
+            for i, r in enumerate(city_rows)
+        ],
+        "market_trend": [
+            {
+                "month": r["month"],
+                "properties": int(r["properties"]),
+                "avgPrice": float(r["avg_price"]) if r["avg_price"] is not None else None,
+                "opportunities": int(r["opportunities"]),
+            }
+            for r in reversed(trend_rows)
+        ],
+    })

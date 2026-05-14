@@ -33,6 +33,21 @@ const RECOMENDACAO_TONE = {
   evitar: { label: 'Evitar', dot: 'bg-[var(--color-rust)]', text: 'text-[var(--color-rust)]' },
 }
 
+function getFavoriteIds() {
+  try {
+    return JSON.parse(localStorage.getItem('favorite_property_ids') || '[]')
+  } catch {
+    return []
+  }
+}
+
+function saveFavoriteId(id, active) {
+  const ids = new Set(getFavoriteIds().map(String))
+  if (active) ids.add(String(id))
+  else ids.delete(String(id))
+  localStorage.setItem('favorite_property_ids', JSON.stringify([...ids]))
+}
+
 export default function PropertyDetails() {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -49,7 +64,7 @@ export default function PropertyDetails() {
       .then((res) => res.ok ? res.json() : Promise.reject(new Error('not-found')))
       .then((data) => {
         setProperty(data)
-        setFav(data.favorited ?? false)
+        setFav(getFavoriteIds().map(String).includes(String(data.id)))
       })
       .catch((err) => {
         if (err.name !== 'AbortError') setError('Nao foi possivel carregar este imovel do banco.')
@@ -118,7 +133,11 @@ export default function PropertyDetails() {
               <Share2 size={12} /> Compartilhar
             </button>
             <button
-              onClick={() => setFav((v) => !v)}
+              onClick={() => {
+                const next = !fav
+                setFav(next)
+                saveFavoriteId(property.id, next)
+              }}
               className={`flex items-center gap-1 rounded-full border px-3 py-1.5 transition-colors ${
                 fav
                   ? 'border-[var(--color-amber)] bg-[var(--color-amber)] text-[var(--color-ink)]'

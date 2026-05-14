@@ -1,13 +1,44 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Heart, ArrowRight } from 'lucide-react'
 import Sidebar from '../components/app/Sidebar'
 import PropertyCard from '../components/app/PropertyCard'
-import { getFavoriteProperties } from '../lib/mockUserData'
+import API_BASE_URL from '../config/api'
+
+function getFavoriteIds() {
+  try {
+    return JSON.parse(localStorage.getItem('favorite_property_ids') || '[]')
+  } catch {
+    return []
+  }
+}
 
 export default function Favorites() {
   const navigate = useNavigate()
-  const [items] = useState(() => getFavoriteProperties())
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const ids = getFavoriteIds()
+    if (ids.length === 0) {
+      setItems([])
+      setLoading(false)
+      return
+    }
+    const controller = new AbortController()
+    setLoading(true)
+    Promise.all(
+      ids.map((id) =>
+        fetch(`${API_BASE_URL}/properties/${id}`, { signal: controller.signal })
+          .then((res) => (res.ok ? res.json() : null))
+      )
+    )
+      .then((rows) => setItems(rows.filter(Boolean)))
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [])
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -34,7 +65,11 @@ export default function Favorites() {
           </button>
         </header>
 
-        {items.length === 0 ? (
+        {loading ? (
+          <div className="card-paper rise-in p-8 text-center text-[12px] text-[var(--color-ink-mute)]">
+            Carregando favoritos reais do banco...
+          </div>
+        ) : items.length === 0 ? (
           <div className="card-paper rise-in flex flex-col items-center justify-center gap-3 p-12 text-center">
             <Heart size={40} strokeWidth={1.4} className="text-[var(--color-ink-mute)]" />
             <h2 className="font-display text-[16px] font-700 text-[var(--color-ink)]">

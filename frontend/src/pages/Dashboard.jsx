@@ -22,8 +22,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import API_BASE_URL from '../config/api'
 
-// Mock data
-const marketData = [
+const DEFAULT_MARKET_DATA = [
   { month: 'Jan', properties: 2400, avgPrice: 180000, opportunities: 45 },
   { month: 'Fev', properties: 2210, avgPrice: 175000, opportunities: 52 },
   { month: 'Mar', properties: 2290, avgPrice: 182000, opportunities: 48 },
@@ -32,7 +31,7 @@ const marketData = [
   { month: 'Jun', properties: 2500, avgPrice: 190000, opportunities: 67 }
 ]
 
-const recentProperties = [
+const DEFAULT_RECENT_PROPERTIES = [
   {
     id: 1,
     code: '1444419970935',
@@ -74,7 +73,7 @@ const recentProperties = [
   }
 ]
 
-const cityDistribution = [
+const DEFAULT_CITY_DISTRIBUTION = [
   { name: 'São Paulo', value: 35, color: '#3B82F6' },
   { name: 'Rio de Janeiro', value: 25, color: '#8B5CF6' },
   { name: 'Belo Horizonte', value: 20, color: '#10B981' },
@@ -82,7 +81,7 @@ const cityDistribution = [
   { name: 'Outros', value: 8, color: '#6B7280' }
 ]
 
-const alerts = [
+const DEFAULT_ALERTS = [
   {
     id: 1,
     type: 'opportunity',
@@ -149,22 +148,63 @@ export default function Dashboard() {
     activeAlerts: 0,
     monthlyOpportunities: 0
   })
+  const [marketData, setMarketData] = useState(DEFAULT_MARKET_DATA)
+  const [recentProperties, setRecentProperties] = useState([])
+  const [cityDistribution, setCityDistribution] = useState(DEFAULT_CITY_DISTRIBUTION)
+  const [alerts] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Simular carregamento de dados
-    const timer = setTimeout(() => {
-      setStats({
-        totalSearches: 127,
-        savedProperties: 23,
-        activeAlerts: 8,
-        monthlyOpportunities: 156
+    const controller = new AbortController()
+    Promise.all([
+      fetch(`${API_BASE_URL}/properties/stats`, { signal: controller.signal }).then((res) => res.ok ? res.json() : null),
+      fetch(`${API_BASE_URL}/properties?limit=3&sort=desconto_desc`, { signal: controller.signal }).then((res) => res.ok ? res.json() : null),
+    ])
+      .then(([statsData, propertiesData]) => {
+        const favoriteIds = JSON.parse(localStorage.getItem('favorite_property_ids') || '[]')
+        setStats({
+          totalSearches: statsData?.total_active ?? 0,
+          savedProperties: favoriteIds.length,
+          activeAlerts: statsData?.coverage?.matriculas ?? 0,
+          monthlyOpportunities: statsData?.opportunities ?? 0
+        })
+        if (statsData?.market_trend?.length) setMarketData(statsData.market_trend)
+        if (statsData?.city_distribution?.length) setCityDistribution(statsData.city_distribution)
+        setRecentProperties((propertiesData?.items ?? []).map((p) => ({
+          id: p.id,
+          code: p.numero_imovel,
+          title: p.endereco_short,
+          city: p.cidade,
+          state: p.uf,
+          price: p.preco_venda,
+          originalPrice: p.valor_avaliacao,
+          discount: p.desconto_percentual,
+          financing: p.aceita_financiamento,
+          aiScore: p.ai_score,
+          image: p.image,
+        })))
       })
-      setLoading(false)
-    }, 1000)
+      .catch(() => {
+        setRecentProperties([])
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
 
-    return () => clearTimeout(timer)
+    return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    if (recentProperties.length > 0) return
+    if (!loading) {
+      setStats({
+        totalSearches: 0,
+        savedProperties: 0,
+        activeAlerts: 0,
+        monthlyOpportunities: 0
+      })
+    }
+  }, [loading, recentProperties.length])
 
   const searchLimit = getSearchLimit()
   const searchUsage = (stats.totalSearches / (searchLimit === -1 ? 1000 : searchLimit)) * 100
@@ -501,13 +541,13 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <span className="font-semibold text-green-600">
-                        R$ {property.price.toLocaleString()}
+                        R$ {(property.price ?? 0).toLocaleString()}
                       </span>
                       <span className="text-sm text-gray-500 line-through">
-                        R$ {property.originalPrice.toLocaleString()}
+                        R$ {(property.originalPrice ?? 0).toLocaleString()}
                       </span>
                       <span className="text-sm text-green-600 font-medium">
-                        -{property.discount}%
+                        -{property.discount ?? 0}%
                       </span>
                     </div>
                     

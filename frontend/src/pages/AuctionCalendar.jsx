@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, Calendar as CalendarIcon,
   Hammer, ExternalLink, Bell, MapPin, Clock,
 } from 'lucide-react'
 import Sidebar from '../components/app/Sidebar'
-import { MOCK_PROPERTIES } from '../lib/mockProperties'
+import API_BASE_URL from '../config/api'
 
 const WEEKDAYS = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom']
 const MONTHS = [
@@ -78,8 +78,23 @@ export default function AuctionCalendar() {
   const today = new Date()
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [selected, setSelected] = useState(null)
+  const [properties, setProperties] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const events = useMemo(() => buildEvents(MOCK_PROPERTIES), [])
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    fetch(`${API_BASE_URL}/properties?limit=500&sort=leilao_proximo`, { signal: controller.signal })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error('calendar')))
+      .then((data) => setProperties(data.items ?? []))
+      .catch(() => setProperties([]))
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [])
+
+  const events = useMemo(() => buildEvents(properties), [properties])
 
   const eventsByDay = useMemo(() => {
     const m = new Map()

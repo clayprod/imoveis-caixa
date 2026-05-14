@@ -5,7 +5,6 @@ import {
   CheckCircle, Clock, AlertTriangle, X, MessageCircle,
 } from 'lucide-react'
 import Sidebar from '../components/app/Sidebar'
-import { MOCK_USER_PHONES, MOCK_WATCHLISTS, MOCK_ALERTS } from '../lib/mockUserData'
 
 const REASON_TONE = {
   novo_match: { label: 'Novo match', tone: 'pill-moss', icon: CheckCircle },
@@ -224,9 +223,9 @@ function WatchlistCard({ wl, phones, onToggleActive, onTogglePhone, onDelete }) 
 
 export default function Alerts() {
   const navigate = useNavigate()
-  const [phones, setPhones] = useState(MOCK_USER_PHONES)
-  const [watchlists, setWatchlists] = useState(MOCK_WATCHLISTS)
-  const [alerts] = useState(MOCK_ALERTS)
+  const [phones, setPhones] = useState([])
+  const [watchlists, setWatchlists] = useState([])
+  const [alerts] = useState([])
 
   const stats = useMemo(() => {
     return {
