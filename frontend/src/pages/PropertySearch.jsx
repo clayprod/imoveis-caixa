@@ -28,7 +28,7 @@ export default function PropertySearch() {
   const [sort, setSort] = useState('desconto_desc')
   const [hovered, setHovered] = useState(null)
   const [mapBounds, setMapBounds] = useState(null)
-  const [restrictToMap, setRestrictToMap] = useState(true)
+  const [restrictToMap, setRestrictToMap] = useState(false)
   const [items, setItems] = useState([])
   const [total, setTotal] = useState(0)
   const [filterOptions, setFilterOptions] = useState(EMPTY_FILTER_OPTIONS)
@@ -69,7 +69,7 @@ export default function PropertySearch() {
 
   const filtered = useMemo(() => {
     if (!restrictToMap || !mapBounds) return prefiltered
-    return prefiltered.filter((p) => {
+    const inViewport = prefiltered.filter((p) => {
       if (!p.lat || !p.lon) return false
       try {
         return mapBounds.contains([p.lat, p.lon])
@@ -77,6 +77,7 @@ export default function PropertySearch() {
         return true
       }
     })
+    return inViewport
   }, [prefiltered, mapBounds, restrictToMap])
 
   const fitTrigger = useMemo(
@@ -173,8 +174,12 @@ export default function PropertySearch() {
               </div>
             ) : filtered.length === 0 ? (
               <div className="card-paper p-8 text-center">
-                <p className="font-display text-[14px] text-[var(--color-ink-soft)]">Nenhum imovel para esses filtros.</p>
-                <p className="mt-1 text-[12px] text-[var(--color-ink-mute)]">Tenta afrouxar os criterios ou limpar os filtros.</p>
+                <p className="font-display text-[14px] text-[var(--color-ink-soft)]">
+                  {restrictToMap && prefiltered.length > 0 ? 'Nenhum imóvel geocodificado neste mapa.' : 'Nenhum imóvel para esses filtros.'}
+                </p>
+                <p className="mt-1 text-[12px] text-[var(--color-ink-mute)]">
+                  {restrictToMap && prefiltered.length > 0 ? 'Desligue o filtro do mapa para ver os imóveis reais sem coordenada.' : 'Tente afrouxar os critérios ou limpar os filtros.'}
+                </p>
               </div>
             ) : (
               <div className="flex flex-col gap-3">
