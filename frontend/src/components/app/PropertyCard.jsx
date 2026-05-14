@@ -1,13 +1,12 @@
 import { useState } from 'react'
-import { Heart, Bed, Car, Ruler, Star } from 'lucide-react'
-import StatPill from './StatPill'
+import { Heart, Bed, Car, Ruler, ExternalLink, FileText, Tag, MapPin } from 'lucide-react'
 import { RiskBadge, hasRiscos } from './RiskAlert'
 
 const TYPE_LABEL = {
   apartamento: 'Apto',
   casa: 'Casa',
   terreno: 'Terreno',
-  galpao: 'Galpão',
+  galpao: 'Galpao',
   sala_comercial: 'Sala',
   loja: 'Loja',
   comercial: 'Comercial',
@@ -29,8 +28,16 @@ function setFavoriteId(id, active) {
 }
 
 function brl(n) {
-  if (n == null) return '—'
+  if (n == null) return '-'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n)
+}
+
+function modalidadeTone(modalidade = '') {
+  const value = modalidade.toLowerCase()
+  if (value.includes('direta')) return 'border-[var(--color-moss-500)]/25 bg-[var(--color-moss-50)] text-[var(--color-moss-700)]'
+  if (value.includes('leil')) return 'border-[var(--color-rust)]/25 bg-[color-mix(in_oklab,var(--color-rust)_10%,var(--color-paper))] text-[var(--color-rust)]'
+  if (value.includes('licita')) return 'border-[var(--color-amber)]/35 bg-[var(--color-amber)]/12 text-[color-mix(in_oklab,var(--color-amber)_75%,var(--color-ink))]'
+  return 'border-[var(--color-line)] bg-[var(--color-paper-soft)] text-[var(--color-ink-soft)]'
 }
 
 function MetaItem({ icon: Icon, value, suffix }) {
@@ -45,8 +52,8 @@ function MetaItem({ icon: Icon, value, suffix }) {
 
 export default function PropertyCard({ property, onClick, onFavorite }) {
   const [fav, setFav] = useState(() => property.favorited ?? getFavoriteIds().map(String).includes(String(property.id)))
-  const fmtType = TYPE_LABEL[property.tipo_imovel] ?? property.tipo_imovel ?? '—'
-  const area = property.area_total_m2 ?? property.area_terreno_m2
+  const fmtType = TYPE_LABEL[property.tipo_imovel] ?? property.tipo_imovel ?? '-'
+  const modalidadeCls = modalidadeTone(property.modalidade_short)
 
   return (
     <article
@@ -64,19 +71,17 @@ export default function PropertyCard({ property, onClick, onFavorite }) {
           <div className="mt-2 flex flex-wrap gap-1">
             <span className="pill pill-line !py-0.5 !px-2.5 !text-[10.5px]">{fmtType}</span>
             {property.modalidade_short && (
-              <span className="pill pill-moss !py-0.5 !px-2.5 !text-[10.5px]">{property.modalidade_short}</span>
+              <span className={`rounded-full border px-2.5 py-0.5 text-[10.5px] font-700 ${modalidadeCls}`}>
+                {property.modalidade_short}
+              </span>
             )}
             {property.situacao && (
               <span className={`pill !py-0.5 !px-2.5 !text-[10.5px] ${property.situacao === 'desocupado' ? 'pill-amber' : 'pill-line'}`}>
                 {property.situacao}
               </span>
             )}
-            {property.aceita_fgts && (
-              <span className="pill pill-line !py-0.5 !px-2.5 !text-[10.5px]">FGTS</span>
-            )}
-            {property.aceita_financiamento && (
-              <span className="pill pill-line !py-0.5 !px-2.5 !text-[10.5px]">Financia</span>
-            )}
+            {property.aceita_fgts && <span className="pill pill-line !py-0.5 !px-2.5 !text-[10.5px]">FGTS</span>}
+            {property.aceita_financiamento && <span className="pill pill-line !py-0.5 !px-2.5 !text-[10.5px]">Financia</span>}
             {hasRiscos(property) && <RiskBadge riscos={property.riscos_juridicos} />}
           </div>
         </div>
@@ -97,7 +102,7 @@ export default function PropertyCard({ property, onClick, onFavorite }) {
         </button>
       </header>
 
-      <div className="grid grid-cols-[1.05fr_0.85fr_0.85fr] gap-2 px-4">
+      <div className="grid grid-cols-[1.05fr_1.25fr] gap-3 px-4">
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[var(--color-paper-soft)]">
           {property.image ? (
             <img src={property.image} alt="" className="h-full w-full object-cover" />
@@ -106,60 +111,70 @@ export default function PropertyCard({ property, onClick, onFavorite }) {
               Sem foto
             </div>
           )}
-          <div className="absolute bottom-1.5 left-1.5 rounded-full bg-[var(--color-ink)]/85 px-2 py-0.5 text-[10.5px] font-700 text-[var(--color-paper)] backdrop-blur">
-            {brl(property.preco_venda)}
-          </div>
         </div>
 
-        <StatPill
-          icon={Star}
-          label="Score bairro"
-          value={property.bairro_score ?? '—'}
-          suffix={property.bairro_score != null ? '/100' : null}
-          tone="moss"
-        />
-        <StatPill
-          label="Desconto"
-          value={property.desconto_percentual?.toFixed(1) ?? '—'}
-          suffix="%"
-          tone="amber"
-        />
+        <div className="flex min-w-0 flex-col justify-between rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-soft)] p-3">
+          <div>
+            <p className="font-mono text-[9.5px] uppercase tracking-wider text-[var(--color-ink-mute)]">preco de venda</p>
+            <p className="mt-1 font-display text-[22px] font-800 leading-none text-[var(--color-ink)]">
+              {brl(property.preco_venda)}
+            </p>
+            {property.valor_avaliacao != null && (
+              <p className="mt-1 text-[11px] text-[var(--color-ink-mute)]">
+                avaliacao Caixa {brl(property.valor_avaliacao)}
+              </p>
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5 text-[10.5px]">
+            {property.desconto_percentual != null && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-line)] bg-[var(--color-paper)] px-2 py-0.5 text-[var(--color-ink-soft)]">
+                <Tag size={10} /> {property.desconto_percentual.toFixed(1)}% desc.
+              </span>
+            )}
+            {property.bairro_score != null && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--color-line)] bg-[var(--color-paper)] px-2 py-0.5 text-[var(--color-ink-soft)]">
+                <MapPin size={10} /> bairro {property.bairro_score}/100
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* meta inline: dados dos scrapers */}
       <footer className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--color-line)] px-4 py-2.5">
         <MetaItem icon={Bed} value={property.quartos} suffix="q" />
         <MetaItem icon={Car} value={property.vagas} suffix="v" />
         {property.area_total_m2 ? (
-          <MetaItem icon={Ruler} value={Number(property.area_total_m2).toFixed(0)} suffix="m² total" />
+          <MetaItem icon={Ruler} value={Number(property.area_total_m2).toFixed(0)} suffix="m2 total" />
         ) : property.area_terreno_m2 ? (
-          <MetaItem icon={Ruler} value={Number(property.area_terreno_m2).toFixed(0)} suffix="m² terreno" />
+          <MetaItem icon={Ruler} value={Number(property.area_terreno_m2).toFixed(0)} suffix="m2 terreno" />
         ) : null}
-        {property.area_construida_m2 && (
-          <MetaItem icon={Ruler} value={Number(property.area_construida_m2).toFixed(0)} suffix="m² constr." />
-        )}
         <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-[var(--color-ink-mute)]">
           #{property.numero_imovel}
         </span>
       </footer>
 
-      {/* preço comparativo: aval. Caixa + vs mercado */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-[var(--color-line)] bg-[var(--color-paper-soft)] px-4 py-2 text-[11px]">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--color-ink-mute)]">
-          aval. caixa
-        </span>
-        <span className="font-display text-[12px] font-600 text-[var(--color-ink-soft)]">
-          {brl(property.valor_avaliacao)}
-        </span>
-        {property.mercado_similar?.preco_medio && (
-          <>
-            <span className="ml-auto font-mono text-[10px] uppercase tracking-wider text-[var(--color-moss-700)]">
-              vs mercado
-            </span>
-            <span className="font-display text-[12px] font-700 text-[var(--color-moss-700)]">
-              -{(((property.mercado_similar.preco_medio - property.preco_venda) / property.mercado_similar.preco_medio) * 100).toFixed(0)}%
-            </span>
-          </>
+      <div className="flex flex-wrap items-center gap-2 border-t border-[var(--color-line)] bg-[var(--color-paper-soft)] px-4 py-2 text-[11px]">
+        {property.link_caixa && (
+          <a
+            href={property.link_caixa}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 rounded-full bg-[var(--color-ink)] px-3 py-1.5 font-700 text-[var(--color-paper)] hover:bg-[var(--color-moss-700)]"
+          >
+            Abrir na Caixa <ExternalLink size={11} />
+          </a>
+        )}
+        {property.link_matricula_pdf && (
+          <a
+            href={property.link_matricula_pdf}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--color-line)] bg-[var(--color-paper)] px-3 py-1.5 font-600 text-[var(--color-ink-soft)] hover:border-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"
+          >
+            Matricula <FileText size={11} />
+          </a>
         )}
       </div>
     </article>

@@ -230,6 +230,11 @@ def list_properties():
         where.append("lower(p.tipo_imovel) = lower(%s)")
         params.append(tipo)
 
+    modalidade = request.args.get("modalidade")
+    if modalidade:
+        where.append("p.modalidade_venda ILIKE %s")
+        params.append(f"%{modalidade}%")
+
     if request.args.get("preco_max"):
         where.append("p.preco_venda <= %s")
         params.append(request.args["preco_max"])
@@ -244,13 +249,36 @@ def list_properties():
         params.append(request.args["area_min"])
     if request.args.get("aceita_financiamento") == "true":
         where.append("p.aceita_financiamento IS TRUE")
+    if request.args.get("aceita_fgts") == "true":
+        where.append("d.formas_pagamento::text ILIKE %s")
+        params.append("%FGTS%")
+    if request.args.get("somente_desocupados") == "true":
+        where.append("lower(COALESCE(d.situacao, '')) = 'desocupado'")
+    if request.args.get("leilao_iminente") == "true":
+        where.append("(d.data_leilao_1 BETWEEN now() AND now() + interval '30 days' OR d.data_leilao_2 BETWEEN now() AND now() + interval '30 days')")
     if request.args.get("com_matricula") == "true":
         where.append("d.link_matricula_pdf IS NOT NULL")
+    if request.args.get("com_foto") == "true":
+        where.append("EXISTS (SELECT 1 FROM property_photos ph WHERE ph.property_id = p.id AND ph.source_url IS NOT NULL)")
+    if request.args.get("geocoded_only") == "true":
+        where.append("p.lat IS NOT NULL AND p.lon IS NOT NULL")
 
+    score_expr = """
+      (
+        45
+        + LEAST(GREATEST(COALESCE(p.desconto_percentual, 0), 0), 60) * 0.55
+        + CASE WHEN p.aceita_financiamento IS TRUE THEN 7 ELSE 0 END
+        + CASE WHEN lower(COALESCE(d.situacao, '')) = 'desocupado' THEN 8 ELSE 0 END
+        + CASE WHEN lower(COALESCE(d.situacao, '')) = 'ocupado' THEN -8 ELSE 0 END
+        + CASE WHEN d.riscos_juridicos IS NOT NULL AND jsonb_array_length(d.riscos_juridicos) > 0 THEN -10 ELSE 0 END
+        + (COALESCE(nb.score, 50) - 50) * 0.25
+      )
+    """
     order_by = {
         "preco_asc": "p.preco_venda ASC NULLS LAST",
         "preco_desc": "p.preco_venda DESC NULLS LAST",
         "bairro_score_desc": "nb.score DESC NULLS LAST",
+        "ai_score_desc": f"{score_expr} DESC NULLS LAST",
         "recente": "p.updated_at DESC NULLS LAST",
         "leilao_proximo": "d.data_leilao_1 ASC NULLS LAST",
         "desconto_desc": "p.desconto_percentual DESC NULLS LAST",

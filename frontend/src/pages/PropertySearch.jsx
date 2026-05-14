@@ -9,15 +9,18 @@ import API_BASE_URL from '../config/api'
 
 const EMPTY_FILTER_OPTIONS = { ufs: [], cidades: [], bairros: [] }
 
-function buildParams(query, filters, sort) {
-  const params = new URLSearchParams({ limit: '200', sort })
+const PAGE_SIZE = 500
+
+function buildParams(query, filters, sort, { limit = PAGE_SIZE, offset = 0, geocodedOnly = false } = {}) {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset), sort })
   if (query.trim()) params.set('q', query.trim())
-  for (const key of ['uf', 'cidade', 'bairro', 'tipo_imovel', 'preco_max', 'desconto_min', 'quartos_min', 'area_min']) {
+  for (const key of ['uf', 'cidade', 'bairro', 'tipo_imovel', 'modalidade', 'preco_max', 'desconto_min', 'quartos_min', 'area_min']) {
     if (filters[key] != null && filters[key] !== '') params.set(key, String(filters[key]))
   }
-  for (const key of ['aceita_financiamento', 'com_matricula']) {
+  for (const key of ['aceita_financiamento', 'aceita_fgts', 'somente_desocupados', 'leilao_iminente', 'com_matricula']) {
     if (filters[key]) params.set(key, 'true')
   }
+  if (geocodedOnly) params.set('geocoded_only', 'true')
   return params
 }
 
@@ -30,7 +33,9 @@ export default function PropertySearch() {
   const [mapBounds, setMapBounds] = useState(null)
   const [restrictToMap, setRestrictToMap] = useState(false)
   const [items, setItems] = useState([])
+  const [mapItems, setMapItems] = useState([])
   const [total, setTotal] = useState(0)
+  const [offset, setOffset] = useState(0)
   const [filterOptions, setFilterOptions] = useState(EMPTY_FILTER_OPTIONS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -46,7 +51,8 @@ export default function PropertySearch() {
     const controller = new AbortController()
     setLoading(true)
     setError('')
-    fetch(`${API_BASE_URL}/properties?${buildParams(query, filters, sort)}`, { signal: controller.signal })
+    setOffset(0)
+    fetch(`${API_BASE_URL}/properties?${buildParams(query, filters, sort, { offset: 0 })}`, { signal: controller.signal })
       .then((res) => res.ok ? res.json() : Promise.reject(new Error('properties')))
       .then((data) => {
         setItems(data.items ?? [])
@@ -65,6 +71,27 @@ export default function PropertySearch() {
     return () => controller.abort()
   }, [query, filters, sort])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch(`${API_BASE_URL}/properties?${buildParams(query, filters, sort, { limit: 500, geocodedOnly: true })}`, { signal: controller.signal })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error('map')))
+      .then((data) => setMapItems(data.items ?? []))
+      .catch(() => setMapItems([]))
+    return () => controller.abort()
+  }, [query, filters, sort])
+
+  const loadMore = () => {
+    const nextOffset = offset + PAGE_SIZE
+    fetch(`${API_BASE_URL}/properties?${buildParams(query, filters, sort, { offset: nextOffset })}`)
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error('more')))
+      .then((data) => {
+        setItems((prev) => [...prev, ...(data.items ?? [])])
+        setOffset(nextOffset)
+        setTotal(data.total ?? total)
+      })
+      .catch(() => setError('Nao foi possivel carregar mais imoveis.'))
+  }
+
   const prefiltered = items
 
   const filtered = useMemo(() => {
@@ -81,8 +108,8 @@ export default function PropertySearch() {
   }, [prefiltered, mapBounds, restrictToMap])
 
   const fitTrigger = useMemo(
-    () => JSON.stringify({ query, filters, sort, total: prefiltered.length }),
-    [query, filters, sort, prefiltered.length]
+    () => JSON.stringify({ query, filters, sort, total: mapItems.length }),
+    [query, filters, sort, mapItems.length]
   )
 
   const focusBairro = useMemo(() => {
@@ -122,7 +149,7 @@ export default function PropertySearch() {
                   {loading ? 'Carregando' : filtered.length} {filtered.length === 1 ? 'oportunidade' : 'oportunidades'}
                 </h1>
                 <span className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-ink-mute)]">
-                  {sortLabel.toLowerCase()}
+                  {sortLabel.toLowerCase()} · {items.length}/{total}
                 </span>
               </div>
               <button
@@ -194,6 +221,14 @@ export default function PropertySearch() {
                     <PropertyCard property={p} onClick={() => navigate(`/property/${p.id}`)} />
                   </div>
                 ))}
+                {items.length < total && !restrictToMap && (
+                  <button
+                    onClick={loadMore}
+                    className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-paper)] px-4 py-3 text-[12px] font-600 text-[var(--color-ink)] hover:border-[var(--color-ink-soft)]"
+                  >
+                    Carregar mais {Math.min(PAGE_SIZE, total - items.length)} imóveis
+                  </button>
+                )}
               </div>
             )}
           </section>
@@ -201,7 +236,8 @@ export default function PropertySearch() {
           <section className="rise-in min-h-0" style={{ animationDelay: '160ms' }}>
             <div className="card-paper relative h-full overflow-hidden">
               <PropertyMap
-                properties={prefiltered}
+                properties={mapItems}
+                totalProperties={prefiltered.length}
                 highlightId={hovered}
                 onMarkerClick={(p) => navigate(`/property/${p.id}`)}
                 onBoundsChange={setMapBounds}

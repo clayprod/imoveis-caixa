@@ -137,6 +137,7 @@ function RichTooltip({ p }) {
 
 export default function PropertyMap({
   properties = [],
+  totalProperties,
   highlightId,
   onMarkerClick,
   onBoundsChange,
@@ -144,6 +145,7 @@ export default function PropertyMap({
   rounded = true,
   height = '100%',
 }) {
+  const geocodedCount = properties.filter((p) => p.lat && p.lon).length
   const center = useMemo(() => {
     const pts = properties.filter((p) => p.lat && p.lon)
     if (pts.length === 0) return [-15.7801, -47.9292]
@@ -196,6 +198,12 @@ export default function PropertyMap({
             )
           })}
       </MapContainer>
+      <div className="pointer-events-none absolute left-3 bottom-3 z-[500] rounded-xl bg-[var(--color-paper)]/95 px-3 py-2 text-[11px] text-[var(--color-ink-soft)] shadow-[var(--shadow-soft)] backdrop-blur">
+        <span className="font-700 text-[var(--color-ink)]">{geocodedCount}</span> no mapa
+        {totalProperties != null && totalProperties > geocodedCount && (
+          <span> · {totalProperties - geocodedCount} sem coordenada exata</span>
+        )}
+      </div>
     </div>
   )
 }
