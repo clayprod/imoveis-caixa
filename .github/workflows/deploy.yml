@@ -21,7 +21,7 @@ jobs:
         include:
           - name: ingest
             image: imoveis-caixa-ingest
-            alias: imoveis-caixa/imoveis-ingest
+            alias: imoveis-caixa/imoveis-api
             dockerfile: backend/Dockerfile
           - name: webhook
             image: imoveis-caixa-webhook
@@ -29,7 +29,7 @@ jobs:
             dockerfile: webhook/Dockerfile
           - name: frontend
             image: imoveis-caixa-frontend
-            alias: imoveis-caixa/imoveis-frontend
+            alias: imoveis-caixa/imoveis-ingest
             dockerfile: frontend/Dockerfile
     steps:
       - name: Checkout
