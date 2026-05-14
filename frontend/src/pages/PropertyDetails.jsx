@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Calendar, Eye, Percent, Heart, ArrowLeft, ChevronRight, Bed, Bath, Car, Ruler,
@@ -11,7 +11,7 @@ import StatPill from '../components/app/StatPill'
 import NeighborhoodPanel from '../components/app/NeighborhoodPanel'
 import MarketComparison from '../components/app/MarketComparison'
 import { RiskBanner, RiskBadge, hasRiscos } from '../components/app/RiskAlert'
-import { MOCK_PROPERTIES } from '../lib/mockProperties'
+import API_BASE_URL from '../config/api'
 
 const TYPE_LABEL = {
   apartamento: 'Apartamento', casa: 'Casa', terreno: 'Terreno',
@@ -36,8 +36,51 @@ const RECOMENDACAO_TONE = {
 export default function PropertyDetails() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const property = useMemo(() => MOCK_PROPERTIES.find((p) => String(p.id) === String(id)) ?? MOCK_PROPERTIES[0], [id])
-  const [fav, setFav] = useState(property.favorited ?? false)
+  const [property, setProperty] = useState(null)
+  const [fav, setFav] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+    fetch(`${API_BASE_URL}/properties/${id}`, { signal: controller.signal })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error('not-found')))
+      .then((data) => {
+        setProperty(data)
+        setFav(data.favorited ?? false)
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') setError('Nao foi possivel carregar este imovel do banco.')
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full overflow-hidden">
+        <Sidebar />
+        <main className="flex flex-1 items-center justify-center p-4 pl-0">
+          <div className="card-paper p-8 text-[13px] text-[var(--color-ink-mute)]">Carregando dados reais da Caixa...</div>
+        </main>
+      </div>
+    )
+  }
+
+  if (error || !property) {
+    return (
+      <div className="flex h-screen w-full overflow-hidden">
+        <Sidebar />
+        <main className="flex flex-1 items-center justify-center p-4 pl-0">
+          <div className="card-paper p-8 text-[13px] text-[var(--color-rust)]">{error || 'Imovel nao encontrado.'}</div>
+        </main>
+      </div>
+    )
+  }
 
   const recomendacao = RECOMENDACAO_TONE[property.ai_recomendacao] ?? RECOMENDACAO_TONE.analisar
 

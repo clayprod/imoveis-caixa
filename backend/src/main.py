@@ -21,6 +21,7 @@ from src.routes.auth import auth_bp
 from src.routes.user import user_bp
 from src.routes.analysis import analysis_bp
 from src.routes.financing import financing_bp
+from src.routes.properties import properties_bp
 
 # 📝 Logging básico
 logging.basicConfig(level=logging.INFO)
@@ -54,6 +55,7 @@ app.register_blueprint(auth_bp, url_prefix='/api')
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
 app.register_blueprint(financing_bp, url_prefix='/api/financing')
+app.register_blueprint(properties_bp, url_prefix='/api')
 
 # ✅ Health Check
 @app.route('/health')

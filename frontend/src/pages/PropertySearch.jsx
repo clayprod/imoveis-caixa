@@ -1,61 +1,24 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/app/Sidebar'
 import PropertyFilters, { SORT_OPTIONS } from '../components/app/PropertyFilters'
 import PropertyCard from '../components/app/PropertyCard'
 import PropertyMap from '../components/app/PropertyMap'
 import NeighborhoodPanel from '../components/app/NeighborhoodPanel'
-import { MOCK_PROPERTIES, MOCK_FILTER_OPTIONS } from '../lib/mockProperties'
+import API_BASE_URL from '../config/api'
 
-const TYPE_FILTER_NORMALIZED = (s) => (s ?? '').toLowerCase()
+const EMPTY_FILTER_OPTIONS = { ufs: [], cidades: [], bairros: [] }
 
-function applyFilters(items, query, filters) {
-  const q = query.trim().toLowerCase()
-  return items.filter((p) => {
-    if (q && !`${p.endereco_short} ${p.endereco_full} ${p.numero_imovel} ${p.bairro} ${p.cidade}`.toLowerCase().includes(q)) return false
-    if (filters.modalidade && p.modalidade_short && !filters.modalidade.toLowerCase().includes(p.modalidade_short.toLowerCase().split(' ')[0])) {
-      // matching tolerante: "Leilão SFI - Edital Único" filter casa com card "Leilão SFI"
-      const f = filters.modalidade.toLowerCase()
-      const m = p.modalidade_short.toLowerCase()
-      if (!f.includes(m.split(' ')[0]) && !m.includes(f.split(' ')[0])) return false
-    }
-    if (filters.tipo_imovel && TYPE_FILTER_NORMALIZED(p.tipo_imovel) !== filters.tipo_imovel) return false
-    if (filters.uf && p.uf !== filters.uf) return false
-    if (filters.cidade && p.cidade !== filters.cidade) return false
-    if (filters.bairro && p.bairro !== filters.bairro) return false
-    if (filters.preco_max != null && p.preco_venda > filters.preco_max) return false
-    if (filters.desconto_min != null && (p.desconto_percentual ?? 0) < filters.desconto_min) return false
-    if (filters.quartos_min != null && (p.quartos ?? 0) < filters.quartos_min) return false
-    if (filters.area_min != null) {
-      const a = p.area_total_m2 ?? p.area_terreno_m2 ?? 0
-      if (a < filters.area_min) return false
-    }
-    if (filters.aceita_fgts && !p.aceita_fgts) return false
-    if (filters.aceita_financiamento && !p.aceita_financiamento) return false
-    if (filters.somente_desocupados && p.situacao !== 'desocupado') return false
-    if (filters.com_matricula && !p.link_matricula_pdf) return false
-    if (filters.leilao_iminente) {
-      const dt = p.data_leilao_1 ? new Date(p.data_leilao_1) : null
-      if (!dt) return false
-      const days = (dt.getTime() - Date.now()) / 86400000
-      if (days < 0 || days > 30) return false
-    }
-    return true
-  })
-}
-
-const SORTERS = {
-  desconto_desc: (a, b) => (b.desconto_percentual ?? 0) - (a.desconto_percentual ?? 0),
-  preco_asc: (a, b) => (a.preco_venda ?? Infinity) - (b.preco_venda ?? Infinity),
-  preco_desc: (a, b) => (b.preco_venda ?? 0) - (a.preco_venda ?? 0),
-  ai_score_desc: (a, b) => (b.ai_score ?? 0) - (a.ai_score ?? 0),
-  bairro_score_desc: (a, b) => (b.bairro_score ?? 0) - (a.bairro_score ?? 0),
-  recente: (a, b) => b.id - a.id,
-  leilao_proximo: (a, b) => {
-    const da = a.data_leilao_1 ? new Date(a.data_leilao_1).getTime() : Infinity
-    const db = b.data_leilao_1 ? new Date(b.data_leilao_1).getTime() : Infinity
-    return da - db
-  },
+function buildParams(query, filters, sort) {
+  const params = new URLSearchParams({ limit: '200', sort })
+  if (query.trim()) params.set('q', query.trim())
+  for (const key of ['uf', 'cidade', 'bairro', 'tipo_imovel', 'preco_max', 'desconto_min', 'quartos_min', 'area_min']) {
+    if (filters[key] != null && filters[key] !== '') params.set(key, String(filters[key]))
+  }
+  for (const key of ['aceita_financiamento', 'com_matricula']) {
+    if (filters[key]) params.set(key, 'true')
+  }
+  return params
 }
 
 export default function PropertySearch() {
@@ -66,14 +29,44 @@ export default function PropertySearch() {
   const [hovered, setHovered] = useState(null)
   const [mapBounds, setMapBounds] = useState(null)
   const [restrictToMap, setRestrictToMap] = useState(true)
+  const [items, setItems] = useState([])
+  const [total, setTotal] = useState(0)
+  const [filterOptions, setFilterOptions] = useState(EMPTY_FILTER_OPTIONS)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  // pré-filtro (search + atributos) — pins do mapa usam esta lista
-  const prefiltered = useMemo(() => {
-    const list = applyFilters(MOCK_PROPERTIES, query, filters)
-    return list.slice().sort(SORTERS[sort] ?? SORTERS.desconto_desc)
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/properties/filters`)
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error('filters')))
+      .then(setFilterOptions)
+      .catch(() => setFilterOptions(EMPTY_FILTER_OPTIONS))
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+    fetch(`${API_BASE_URL}/properties?${buildParams(query, filters, sort)}`, { signal: controller.signal })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error('properties')))
+      .then((data) => {
+        setItems(data.items ?? [])
+        setTotal(data.total ?? 0)
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setItems([])
+          setTotal(0)
+          setError('Nao foi possivel carregar os dados reais do banco.')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
   }, [query, filters, sort])
 
-  // lista renderizada — restringe ao viewport do mapa quando habilitado
+  const prefiltered = items
+
   const filtered = useMemo(() => {
     if (!restrictToMap || !mapBounds) return prefiltered
     return prefiltered.filter((p) => {
@@ -86,17 +79,16 @@ export default function PropertySearch() {
     })
   }, [prefiltered, mapBounds, restrictToMap])
 
-  // muda quando filtros explícitos mudam — força fit do mapa nos novos resultados
   const fitTrigger = useMemo(
-    () => JSON.stringify({ query, filters, sort }),
-    [query, filters, sort]
+    () => JSON.stringify({ query, filters, sort, total: prefiltered.length }),
+    [query, filters, sort, prefiltered.length]
   )
 
   const focusBairro = useMemo(() => {
-    if (filters.bairro) return MOCK_PROPERTIES.find((p) => p.bairro === filters.bairro)
-    if (hovered) return MOCK_PROPERTIES.find((p) => p.id === hovered)
+    if (filters.bairro) return prefiltered.find((p) => p.bairro === filters.bairro)
+    if (hovered) return prefiltered.find((p) => p.id === hovered)
     return null
-  }, [filters.bairro, hovered])
+  }, [filters.bairro, hovered, prefiltered])
 
   const sortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label ?? ''
   const hiddenByMap = prefiltered.length - filtered.length
@@ -106,7 +98,6 @@ export default function PropertySearch() {
       <Sidebar />
 
       <main className="flex flex-1 flex-col gap-3 overflow-hidden p-4 pl-0">
-        {/* Filtros */}
         <div className="card-glass rise-in flex items-center px-4 py-3" style={{ animationDelay: '40ms' }}>
           <PropertyFilters
             query={query}
@@ -115,20 +106,19 @@ export default function PropertySearch() {
             onFiltersChange={setFilters}
             sort={sort}
             onSortChange={setSort}
-            ufs={MOCK_FILTER_OPTIONS.ufs}
-            cidades={MOCK_FILTER_OPTIONS.cidades}
-            bairros={MOCK_FILTER_OPTIONS.bairros}
-            total={prefiltered.length}
+            ufs={filterOptions.ufs}
+            cidades={filterOptions.cidades}
+            bairros={filterOptions.bairros}
+            total={total}
           />
         </div>
 
-        {/* lista + mapa */}
         <div className="grid flex-1 grid-cols-[minmax(380px,440px)_1fr] gap-3 overflow-hidden">
           <section className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
             <header className="rise-in flex flex-col gap-1.5" style={{ animationDelay: '90ms' }}>
               <div className="flex items-baseline justify-between">
                 <h1 className="font-display text-[20px] font-700 leading-tight text-[var(--color-ink)]">
-                  {filtered.length} {filtered.length === 1 ? 'oportunidade' : 'oportunidades'}
+                  {loading ? 'Carregando' : filtered.length} {filtered.length === 1 ? 'oportunidade' : 'oportunidades'}
                 </h1>
                 <span className="font-mono text-[10.5px] uppercase tracking-wider text-[var(--color-ink-mute)]">
                   {sortLabel.toLowerCase()}
@@ -144,18 +134,14 @@ export default function PropertySearch() {
                 ].join(' ')}
               >
                 <span className="flex items-center gap-2">
-                  <span
-                    className={[
-                      'inline-flex h-3.5 w-6 items-center rounded-full p-0.5 transition-colors',
-                      restrictToMap ? 'bg-[var(--color-moss-500)]' : 'bg-[var(--color-line)]',
-                    ].join(' ')}
-                  >
-                    <span
-                      className={[
-                        'h-2.5 w-2.5 rounded-full bg-white shadow transition-transform',
-                        restrictToMap ? 'translate-x-2.5' : 'translate-x-0',
-                      ].join(' ')}
-                    />
+                  <span className={[
+                    'inline-flex h-3.5 w-6 items-center rounded-full p-0.5 transition-colors',
+                    restrictToMap ? 'bg-[var(--color-moss-500)]' : 'bg-[var(--color-line)]',
+                  ].join(' ')}>
+                    <span className={[
+                      'h-2.5 w-2.5 rounded-full bg-white shadow transition-transform',
+                      restrictToMap ? 'translate-x-2.5' : 'translate-x-0',
+                    ].join(' ')} />
                   </span>
                   Filtrar pelo viewport do mapa
                 </span>
@@ -177,10 +163,18 @@ export default function PropertySearch() {
               />
             )}
 
-            {filtered.length === 0 ? (
+            {error ? (
               <div className="card-paper p-8 text-center">
-                <p className="font-display text-[14px] text-[var(--color-ink-soft)]">Nenhum imóvel para esses filtros.</p>
-                <p className="mt-1 text-[12px] text-[var(--color-ink-mute)]">Tenta afrouxar os critérios ou limpar os filtros.</p>
+                <p className="font-display text-[14px] text-[var(--color-rust)]">{error}</p>
+              </div>
+            ) : loading ? (
+              <div className="card-paper p-8 text-center">
+                <p className="font-display text-[14px] text-[var(--color-ink-soft)]">Carregando dados reais da Caixa...</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="card-paper p-8 text-center">
+                <p className="font-display text-[14px] text-[var(--color-ink-soft)]">Nenhum imovel para esses filtros.</p>
+                <p className="mt-1 text-[12px] text-[var(--color-ink-mute)]">Tenta afrouxar os criterios ou limpar os filtros.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-3">
